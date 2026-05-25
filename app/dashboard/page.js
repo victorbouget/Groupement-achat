@@ -48,7 +48,7 @@ export default function Dashboard() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-green-100">
             <h2 className="text-xl font-semibold text-green-700 mb-2">Nouvelle commande</h2>
             <p className="text-gray-500 text-sm mb-4">Passer une nouvelle commande groupee</p>
-            <Link href="/commande">
+            <Link href="/commander">
               <button className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800">
                 Commander
               </button>
@@ -80,6 +80,15 @@ export default function Dashboard() {
   <Link href="/admin">
     <button className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800">
       Acceder
+    </button>
+  </Link>
+</div>
+<div className="bg-white p-6 rounded-xl shadow-sm border border-green-100">
+  <h2 className="text-xl font-semibold text-green-700 mb-2">Mon profil</h2>
+  <p className="text-gray-500 text-sm mb-4">Mes informations personnelles</p>
+  <Link href="/profil">
+    <button className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800">
+      Modifier
     </button>
   </Link>
 </div>

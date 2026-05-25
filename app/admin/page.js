@@ -105,6 +105,24 @@ export default function Admin() {
           >
             Produits
           </button>
+          <button
+  onClick={() => setOnglet('depots')}
+  className={`px-6 py-2 rounded-lg font-semibold ${onglet === 'depots' ? 'bg-green-700 text-white' : 'bg-white text-green-700'}`}
+>
+  Depots
+</button>
+          <button
+  onClick={() => setOnglet('recap')}
+  className={`px-6 py-2 rounded-lg font-semibold ${onglet === 'recap' ? 'bg-green-700 text-white' : 'bg-white text-green-700'}`}
+>
+  Recapitulatif
+</button>
+          <button
+  onClick={() => setOnglet('campagnes')}
+  className={`px-6 py-2 rounded-lg font-semibold ${onglet === 'campagnes' ? 'bg-green-700 text-white' : 'bg-white text-green-700'}`}
+>
+  Campagnes
+</button>
         </div>
 
         {onglet === 'commandes' && (
@@ -238,6 +256,33 @@ export default function Admin() {
             </div>
           </div>
         )}
+        {onglet === 'campagnes' && (
+  <div className="text-center mt-8">
+    <Link href="/admin/campagnes">
+      <button className="bg-green-700 text-white px-6 py-3 rounded-lg hover:bg-green-800">
+        Gerer les campagnes
+      </button>
+    </Link>
+  </div>
+)}
+{onglet === 'recap' && (
+  <div className="text-center mt-8">
+    <Link href="/admin/recap">
+      <button className="bg-green-700 text-white px-6 py-3 rounded-lg hover:bg-green-800">
+        Voir le recapitulatif
+      </button>
+    </Link>
+  </div>
+)}
+{onglet === 'depots' && (
+  <div className="text-center mt-8">
+    <Link href="/admin/depots">
+      <button className="bg-green-700 text-white px-6 py-3 rounded-lg hover:bg-green-800">
+        Gerer les depots
+      </button>
+    </Link>
+  </div>
+)}
       </div>
     </main>
   )
