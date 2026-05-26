@@ -46,7 +46,11 @@ export default function Profil() {
     init()
   }, [])
 
-  const handleSave = async () => {
+const handleSave = async () => {
+    if (!profil.nom || !profil.prenom || !profil.telephone || !profil.commune || !profil.code_postal || !profil.depot_id) {
+      setMessage('Veuillez remplir tous les champs obligatoires !')
+      return
+    }
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -75,7 +79,7 @@ export default function Profil() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-green-100">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Prenom</label>
+              <label className="block text-sm text-gray-600 mb-1">Prenom <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={profil.prenom}
@@ -84,7 +88,7 @@ export default function Profil() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Nom</label>
+              <label className="block text-sm text-gray-600 mb-1">Nom <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={profil.nom}
@@ -93,7 +97,7 @@ export default function Profil() {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm text-gray-600 mb-1">Nom de societe</label>
+              <label className="block text-sm text-gray-600 mb-1">Nom de societe <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={profil.societe}
@@ -102,7 +106,7 @@ export default function Profil() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Telephone</label>
+              <label className="block text-sm text-gray-600 mb-1">Telephone <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={profil.telephone}
@@ -111,7 +115,7 @@ export default function Profil() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Email</label>
+              <label className="block text-sm text-gray-600 mb-1">Email <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 disabled
@@ -120,7 +124,7 @@ export default function Profil() {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm text-gray-600 mb-1">Adresse</label>
+              <label className="block text-sm text-gray-600 mb-1">Adresse <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={profil.adresse}
@@ -129,7 +133,7 @@ export default function Profil() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Commune</label>
+              <label className="block text-sm text-gray-600 mb-1">Commune <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={profil.commune}
@@ -138,7 +142,7 @@ export default function Profil() {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Code postal</label>
+              <label className="block text-sm text-gray-600 mb-1">Code postal <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={profil.code_postal}
@@ -147,7 +151,7 @@ export default function Profil() {
               />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm text-gray-600 mb-1">Lieu de depot</label>
+              <label className="block text-sm text-gray-600 mb-1">Lieu de depot <span className="text-red-500">*</span></label>
               <select
                 value={profil.depot_id}
                 onChange={(e) => setProfil({ ...profil, depot_id: e.target.value })}
