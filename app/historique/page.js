@@ -16,26 +16,60 @@ export default function Historique() {
         router.push('/login')
         return
       }
-      const { data } = await supabase
-        .from('commandes')
-        .select(`
-          id,
-          date_commande,
-          statut,
-          commande_produits (
-            quantite,
-            produits (nom, unite, prix)
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('date_commande', { ascending: false })
-
-      setCommandes(data || [])
+      chargerCommandes(user.id)
     }
     init()
   }, [])
 
+  const chargerCommandes = async (userId) => {
+    const { data } = await supabase
+      .from('commandes')
+      .select(`
+        id,
+        date_commande,
+        statut,
+        commande_produits (
+          id,
+          quantite,
+          recu,
+          produits (nom, unite)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('date_commande', { ascending: false })
+
+    setCommandes(data || [])
+  }
+
+  const toggleRecu = async (commandeProduitId, recu, commandeId) => {
+    await supabase
+      .from('commande_produits')
+      .update({ recu: !recu })
+      .eq('id', commandeProduitId)
+
+    // Recharger les commandes
+    const { data: { user } } = await supabase.auth.getUser()
+    await chargerCommandes(user.id)
+
+    // Verifier si tous les produits sont recus
+    const commande = commandes.find(c => c.id === commandeId)
+    if (commande) {
+      const tousRecus = commande.commande_produits
+        .map(cp => cp.id === commandeProduitId ? !recu : cp.recu)
+        .every(r => r === true)
+
+      if (tousRecus) {
+        await supabase
+          .from('commandes')
+          .update({ statut: 'receptionnee' })
+          .eq('id', commandeId)
+        await chargerCommandes(user.id)
+      }
+    }
+  }
+
   const getStatutColor = (statut) => {
+    if (statut === 'receptionnee') return 'bg-purple-100 text-purple-700'
     if (statut === 'livree') return 'bg-gray-100 text-gray-600'
     if (statut === 'validee') return 'bg-blue-100 text-blue-700'
     return 'bg-green-100 text-green-700'
@@ -56,39 +90,64 @@ export default function Historique() {
         {commandes.length === 0 ? (
           <p className="text-gray-500 text-center mt-20">Aucune commande pour instant</p>
         ) : (
-          commandes.map((commande) => (
-            <div key={commande.id} className="bg-white rounded-xl shadow-sm p-6 mb-4 border border-green-100">
-              <div className="flex justify-between items-center mb-4">
-                <p className="font-semibold text-gray-700">
-                  Commande #{commande.id}
+          commandes.map((commande) => {
+            const nbRecus = commande.commande_produits.filter(cp => cp.recu).length
+            const nbTotal = commande.commande_produits.length
+
+            return (
+              <div key={commande.id} className="bg-white rounded-xl shadow-sm p-6 mb-4 border border-green-100">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="font-semibold text-gray-700">Commande #{commande.id}</p>
+                  <span className={`px-3 py-1 rounded-full text-sm ${getStatutColor(commande.statut)}`}>
+                    {commande.statut}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400 mb-4">
+                  {new Date(commande.date_commande).toLocaleDateString('fr-FR')}
                 </p>
-                <span className={`px-3 py-1 rounded-full text-sm ${getStatutColor(commande.statut)}`}>
-                  {commande.statut}
-                </span>
-              </div>
-              <p className="text-sm text-gray-400 mb-4">
-                {new Date(commande.date_commande).toLocaleDateString('fr-FR')}
-              </p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-500 border-b">
-                    <th className="text-left pb-2">Produit</th>
-                    <th className="text-center pb-2">Quantite</th>
-                    <th className="text-right pb-2">Prix unitaire</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {commande.commande_produits.map((ligne, i) => (
-                    <tr key={i} className="border-b last:border-0">
-                      <td className="py-2">{ligne.produits?.nom}</td>
-                      <td className="py-2 text-center">{ligne.quantite} {ligne.produits?.unite}</td>
-                      <td className="py-2 text-right">{ligne.produits?.prix} euro</td>
+
+                <table className="w-full text-sm mb-4">
+                  <thead>
+                    <tr className="text-gray-500 border-b">
+                      <th className="text-left pb-2">Produit</th>
+                      <th className="text-center pb-2">Quantite</th>
+                      <th className="text-center pb-2">Recu</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))
+                  </thead>
+                  <tbody>
+                    {commande.commande_produits.map((ligne) => (
+                      <tr key={ligne.id} className={`border-b last:border-0 ${ligne.recu ? 'bg-green-50' : ''}`}>
+                        <td className="py-3">{ligne.produits?.nom}</td>
+                        <td className="py-3 text-center">{ligne.quantite} {ligne.produits?.unite}</td>
+                        <td className="py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={ligne.recu || false}
+                            onChange={() => toggleRecu(ligne.id, ligne.recu, commande.id)}
+                            className="w-5 h-5 accent-green-700 cursor-pointer"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Barre de progression */}
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Reception : {nbRecus}/{nbTotal} produits</span>
+                    <span>{Math.round((nbRecus / nbTotal) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className="bg-green-600 h-2 rounded-full transition-all"
+                      style={{ width: `${(nbRecus / nbTotal) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })
         )}
       </div>
     </main>
