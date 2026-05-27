@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import * as XLSX from 'xlsx'
 
 export default function AdminCampagnes() {
   const [campagnes, setCampagnes] = useState([])
@@ -13,6 +14,7 @@ export default function AdminCampagnes() {
   const [campagneProduits, setCampagneProduits] = useState([])
   const [nouveauProduit, setNouveauProduit] = useState({ produit_id: '', conditionnement: '', description: '' })
   const [message, setMessage] = useState('')
+  const [importMessage, setImportMessage] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function AdminCampagnes() {
   const selectionnerCampagne = (campagne) => {
     setCampagneSelectionnee(campagne)
     chargerCampagneProduits(campagne.id)
+    setImportMessage('')
   }
 
   const ajouterProduit = async () => {
@@ -94,6 +97,76 @@ export default function AdminCampagnes() {
   const supprimerProduitCampagne = async (id) => {
     await supabase.from('campagne_produits').delete().eq('id', id)
     chargerCampagneProduits(campagneSelectionnee.id)
+  }
+
+  const importerExcel = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setImportMessage('Lecture du fichier...')
+
+    const reader = new FileReader()
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+
+        // Ignorer la ligne d'entete et les lignes vides
+        const lignes = rows.slice(1).filter(row => row[0] && row[1])
+
+        let nbAjoutes = 0
+        let nbErreurs = 0
+
+        for (const row of lignes) {
+          const nomProduit = String(row[0]).trim()
+          const conditionnement = String(row[1]).trim()
+          const description = row[2] ? String(row[2]).trim() : ''
+
+          // Chercher le produit existant ou le créer
+          let produit = produits.find(p => p.nom.toLowerCase() === nomProduit.toLowerCase())
+
+          if (!produit) {
+            // Creer le produit s'il n'existe pas
+            const { data: newProduit, error } = await supabase
+              .from('produits')
+              .insert({ nom: nomProduit, unite: '' })
+              .select()
+              .single()
+
+            if (error) {
+              nbErreurs++
+              continue
+            }
+            produit = newProduit
+          }
+
+          // Verifier si deja dans la campagne
+          const dejaPresent = campagneProduits.find(cp => cp.produit_id === produit.id)
+          if (dejaPresent) continue
+
+          // Ajouter a la campagne
+          const { error } = await supabase.from('campagne_produits').insert({
+            campagne_id: campagneSelectionnee.id,
+            produit_id: produit.id,
+            conditionnement,
+            description
+          })
+
+          if (error) nbErreurs++
+          else nbAjoutes++
+        }
+
+        await chargerProduits()
+        await chargerCampagneProduits(campagneSelectionnee.id)
+        setImportMessage(`Import termine : ${nbAjoutes} produit(s) ajoute(s)${nbErreurs > 0 ? `, ${nbErreurs} erreur(s)` : ''} !`)
+        e.target.value = ''
+      } catch (err) {
+        setImportMessage('Erreur lors de la lecture du fichier')
+      }
+    }
+    reader.readAsArrayBuffer(file)
   }
 
   const getStatutColor = (statut) => {
@@ -198,6 +271,33 @@ export default function AdminCampagnes() {
               Produits de : {campagneSelectionnee.nom}
             </h2>
 
+            {/* Import Excel */}
+            <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-200">
+              <p className="text-sm font-semibold text-green-700 mb-3">Importer depuis Excel</p>
+              <div className="flex gap-3 items-center">
+                <a
+                  href="/modele_import_produits.xlsx"
+                  download
+                  className="bg-white text-green-700 border border-green-300 px-4 py-2 rounded-lg text-sm hover:bg-green-50"
+                >
+                  Telecharger le modele
+                </a>
+                <label className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 cursor-pointer">
+                  Importer un fichier Excel
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={importerExcel}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              {importMessage && (
+                <p className="mt-2 text-sm text-green-700">{importMessage}</p>
+              )}
+            </div>
+
+            {/* Ajout manuel */}
             <div className="grid grid-cols-3 gap-4 mb-4">
               <select
                 value={nouveauProduit.produit_id}
@@ -226,7 +326,7 @@ export default function AdminCampagnes() {
             </div>
             <button
               onClick={ajouterProduit}
-              className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 mb-4"
+              className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 mb-6"
             >
               Ajouter le produit
             </button>

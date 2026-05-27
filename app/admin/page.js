@@ -8,22 +8,18 @@ import Link from 'next/link'
 export default function Admin() {
   const [commandes, setCommandes] = useState([])
   const [produits, setProduits] = useState([])
-  const [inscrits, setInscrits] = useState([])
-  const [depots, setDepots] = useState([])
   const [onglet, setOnglet] = useState('commandes')
   const [nouveauProduit, setNouveauProduit] = useState({ nom: '', unite: '' })
   const [message, setMessage] = useState('')
-  const [responsableDepots, setResponsableDepots] = useState({})
   const router = useRouter()
 
   useEffect(() => {
     const init = async () => {
-     const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/login')
         return
       }
-      // Verifier le role admin
       const { data: profil } = await supabase
         .from('profils')
         .select('role')
@@ -36,8 +32,6 @@ export default function Admin() {
       }
       chargerCommandes()
       chargerProduits()
-      chargerInscrits()
-      chargerDepots()
     }
     init()
   }, [])
@@ -62,52 +56,6 @@ export default function Admin() {
   const chargerProduits = async () => {
     const { data } = await supabase.from('produits').select('*')
     setProduits(data || [])
-  }
-
-  const chargerDepots = async () => {
-    const { data } = await supabase.from('depots').select('*').order('nom')
-    setDepots(data || [])
-  }
-
-  const chargerInscrits = async () => {
-    const { data: profils } = await supabase
-      .from('profils')
-      .select('*, depots(nom)')
-      .order('nom')
-
-    const { data: respDepots } = await supabase
-      .from('responsable_secteur')
-      .select('*, depots(nom)')
-
-    // Grouper les depots par user_id
-    const depotsParUser = {}
-    if (respDepots) {
-      respDepots.forEach((rd) => {
-        if (!depotsParUser[rd.user_id]) depotsParUser[rd.user_id] = []
-        depotsParUser[rd.user_id].push(rd)
-      })
-    }
-    setResponsableDepots(depotsParUser)
-    setInscrits(profils || [])
-  }
-
-  const changerRole = async (userId, role) => {
-    await supabase.from('profils').update({ role }).eq('user_id', userId)
-    chargerInscrits()
-  }
-
-  const ajouterDepotResponsable = async (userId, depotId) => {
-    if (!depotId) return
-    // Verifier si deja present
-    const dejaPresent = (responsableDepots[userId] || []).find(rd => rd.depot_id === parseInt(depotId))
-    if (dejaPresent) return
-    await supabase.from('responsable_secteur').insert({ user_id: userId, depot_id: parseInt(depotId) })
-    chargerInscrits()
-  }
-
-  const supprimerDepotResponsable = async (id) => {
-    await supabase.from('responsable_secteur').delete().eq('id', id)
-    chargerInscrits()
   }
 
   const changerStatut = async (id, statut) => {
@@ -139,12 +87,6 @@ export default function Admin() {
     if (statut === 'livree') return 'bg-gray-100 text-gray-600'
     if (statut === 'validee') return 'bg-blue-100 text-blue-700'
     return 'bg-green-100 text-green-700'
-  }
-
-  const getRoleColor = (role) => {
-    if (role === 'admin') return 'bg-red-100 text-red-700'
-    if (role === 'responsable') return 'bg-blue-100 text-blue-700'
-    return 'bg-gray-100 text-gray-600'
   }
 
   return (
@@ -224,81 +166,12 @@ export default function Admin() {
 
         {/* INSCRITS */}
         {onglet === 'inscrits' && (
-          <div>
-            {inscrits.length === 0 ? (
-              <p className="text-gray-500 text-center mt-20">Aucun inscrit</p>
-            ) : (
-              inscrits.map((inscrit) => (
-                <div key={inscrit.id} className="bg-white rounded-xl shadow-sm p-6 mb-4 border border-green-100">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <p className="font-semibold text-gray-800">{inscrit.prenom} {inscrit.nom}</p>
-                      <p className="text-sm text-gray-500">{inscrit.societe}</p>
-                      <p className="text-sm text-gray-400">{inscrit.telephone} • {inscrit.commune} {inscrit.code_postal}</p>
-                      <p className="text-sm text-gray-400">Depot : {inscrit.depots?.nom || 'Non renseigne'}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`px-3 py-1 rounded-full text-sm ${getRoleColor(inscrit.role)}`}>
-                        {inscrit.role || 'adherent'}
-                      </span>
-                      <select
-                        value={inscrit.role || 'adherent'}
-                        onChange={(e) => changerRole(inscrit.user_id, e.target.value)}
-                        className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
-                      >
-                        <option value="adherent">Adherent</option>
-                        <option value="responsable">Responsable</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Depots du responsable */}
-                  {(inscrit.role === 'responsable' || inscrit.role === 'admin') && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <p className="text-sm font-semibold text-gray-600 mb-2">Depots assignes :</p>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {(responsableDepots[inscrit.user_id] || []).map((rd) => (
-                          <span key={rd.id} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
-                            {rd.depots?.nom}
-                            <button
-                              onClick={() => supprimerDepotResponsable(rd.id)}
-                              className="ml-1 text-blue-400 hover:text-red-500"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                        {(responsableDepots[inscrit.user_id] || []).length === 0 && (
-                          <p className="text-sm text-gray-400">Aucun depot assigne</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <select
-                          id={`depot-select-${inscrit.user_id}`}
-                          className="border border-gray-300 rounded-lg px-2 py-1 text-sm"
-                        >
-                          <option value="">Ajouter un depot...</option>
-                          {depots.map((d) => (
-                            <option key={d.id} value={d.id}>{d.nom}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => {
-                            const sel = document.getElementById(`depot-select-${inscrit.user_id}`)
-                            ajouterDepotResponsable(inscrit.user_id, sel.value)
-                            sel.value = ''
-                          }}
-                          className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-sm hover:bg-blue-200"
-                        >
-                          Ajouter
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+          <div className="text-center mt-8">
+            <Link href="/admin/inscrits">
+              <button className="bg-green-700 text-white px-6 py-3 rounded-lg hover:bg-green-800">
+                Voir les inscrits
+              </button>
+            </Link>
           </div>
         )}
 
