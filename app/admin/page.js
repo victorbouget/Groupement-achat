@@ -102,7 +102,7 @@ export default function Admin() {
         </div>
 
         <div className="flex flex-wrap gap-3 mb-8">
-          {['commandes', 'inscrits', 'produits', 'campagnes', 'recap', 'depots'].map((o) => (
+          {['commandes', 'inscrits', 'produits', 'campagnes', 'recap', 'depots', 'cotisation'].map((o) => (
             <button
               key={o}
               onClick={() => setOnglet(o)}
@@ -260,6 +260,16 @@ export default function Admin() {
             <Link href="/admin/depots">
               <button className="bg-green-700 text-white px-6 py-3 rounded-lg hover:bg-green-800">
                 Gerer les depots
+              </button>
+            </Link>
+          </div>
+        )}
+
+        {onglet === 'cotisation' && (
+          <div className="text-center mt-8">
+            <Link href="/admin/cotisation">
+              <button className="bg-green-700 text-white px-6 py-3 rounded-lg hover:bg-green-800">
+                Gerer la cotisation
               </button>
             </Link>
           </div>

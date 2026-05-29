@@ -28,6 +28,21 @@ export default function Dashboard() {
         router.push('/profil')
         return
       }
+
+      // Verifier la cotisation
+      const annee = new Date().getFullYear()
+      if (profilData.cotisation_annee !== annee || !profilData.cotisation_payee) {
+        const { data: params } = await supabase
+          .from('parametres')
+          .select('cotisation_active')
+          .single()
+
+        if (params?.cotisation_active) {
+          router.push('/cotisation')
+          return
+        }
+      }
+
       setProfil(profilData)
     }
     getUser()
