@@ -28,6 +28,7 @@ export default function Historique() {
         id,
         date_commande,
         statut,
+        campagnes (nom),
         commande_produits (
           id,
           quantite,
@@ -47,11 +48,9 @@ export default function Historique() {
       .update({ recu: !recu })
       .eq('id', commandeProduitId)
 
-    // Recharger les commandes
     const { data: { user } } = await supabase.auth.getUser()
     await chargerCommandes(user.id)
 
-    // Verifier si tous les produits sont recus
     const commande = commandes.find(c => c.id === commandeId)
     if (commande) {
       const tousRecus = commande.commande_produits
@@ -59,10 +58,7 @@ export default function Historique() {
         .every(r => r === true)
 
       if (tousRecus) {
-        await supabase
-          .from('commandes')
-          .update({ statut: 'receptionnee' })
-          .eq('id', commandeId)
+        await supabase.from('commandes').update({ statut: 'receptionnee' }).eq('id', commandeId)
         await chargerCommandes(user.id)
       }
     }
@@ -97,7 +93,11 @@ export default function Historique() {
             return (
               <div key={commande.id} className="bg-white rounded-xl shadow-sm p-6 mb-4 border border-green-100">
                 <div className="flex justify-between items-center mb-2">
-                  <p className="font-semibold text-gray-700">Commande #{commande.id}</p>
+                  <div>
+                    {commande.campagnes?.nom && (
+                      <p className="text-lg font-bold text-green-700">{commande.campagnes.nom}</p>
+                    )}
+                  </div>
                   <span className={`px-3 py-1 rounded-full text-sm ${getStatutColor(commande.statut)}`}>
                     {commande.statut}
                   </span>
@@ -132,7 +132,6 @@ export default function Historique() {
                   </tbody>
                 </table>
 
-                {/* Barre de progression */}
                 <div className="mt-2">
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
                     <span>Reception : {nbRecus}/{nbTotal} produits</span>

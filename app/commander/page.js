@@ -111,7 +111,7 @@ export default function Commander() {
 
     const commandeProduits = lignes.map((l) => ({
       commande_id: commande.id,
-      produit_id: produits.find(p => p.id === l.campagne_produit_id)?.produits?.id || l.campagne_produit_id,
+      produit_id: produits.find(p => p.id === l.campagne_produit_id)?.produit_id,
       quantite: l.quantite
     }))
 

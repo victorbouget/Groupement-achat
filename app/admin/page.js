@@ -44,6 +44,12 @@ export default function Admin() {
     chargerCommandes()
   }
 
+  const supprimerCommande = async (id) => {
+    await supabase.from('commande_produits').delete().eq('commande_id', id)
+    await supabase.from('commandes').delete().eq('id', id)
+    chargerCommandes()
+  }
+
   const ajouterProduit = async () => {
     if (!nouveauProduit.nom || !nouveauProduit.unite) { setMessage('Remplis le nom et l\'unite !'); return }
     await supabase.from('produits').insert({
@@ -132,6 +138,7 @@ export default function Admin() {
                     {['en cours', 'validee', 'livree'].map((s) => (
                       <button key={s} onClick={() => changerStatut(commande.id, s)} className={`px-3 py-1 rounded-lg text-sm ${getStatutColor(s)} hover:opacity-80`}>{s}</button>
                     ))}
+                    <button onClick={() => supprimerCommande(commande.id)} className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200">Supprimer</button>
                   </div>
                 </div>
               ))
