@@ -12,7 +12,9 @@ export default function AdminCampagnes() {
   const [nouvelle, setNouvelle] = useState({ nom: '', date_debut: '', date_fin: '', statut: 'ouverte' })
   const [campagneSelectionnee, setCampagneSelectionnee] = useState(null)
   const [campagneProduits, setCampagneProduits] = useState([])
-  const [nouveauProduit, setNouveauProduit] = useState({ produit_id: '', conditionnement: '', description: '' })
+  const [sections, setSections] = useState([])
+  const [nouvelleSection, setNouvelleSection] = useState('')
+  const [nouveauProduit, setNouveauProduit] = useState({ produit_id: '', conditionnement: '', description: '', section_id: '' })
   const [message, setMessage] = useState('')
   const [importMessage, setImportMessage] = useState('')
   const router = useRouter()
@@ -40,10 +42,19 @@ export default function AdminCampagnes() {
     setProduits(data || [])
   }
 
+  const chargerSections = async (campagneId) => {
+    const { data } = await supabase
+      .from('sections')
+      .select('*')
+      .eq('campagne_id', campagneId)
+      .order('ordre')
+    setSections(data || [])
+  }
+
   const chargerCampagneProduits = async (campagneId) => {
     const { data } = await supabase
       .from('campagne_produits')
-      .select('*, produits(nom)')
+      .select('*, produits(nom), sections(nom)')
       .eq('campagne_id', campagneId)
     setCampagneProduits(data || [])
   }
@@ -74,7 +85,26 @@ export default function AdminCampagnes() {
   const selectionnerCampagne = (campagne) => {
     setCampagneSelectionnee(campagne)
     chargerCampagneProduits(campagne.id)
+    chargerSections(campagne.id)
     setImportMessage('')
+  }
+
+  const ajouterSection = async () => {
+    if (!nouvelleSection) return
+    const ordre = sections.length + 1
+    await supabase.from('sections').insert({
+      campagne_id: campagneSelectionnee.id,
+      nom: nouvelleSection,
+      ordre
+    })
+    setNouvelleSection('')
+    chargerSections(campagneSelectionnee.id)
+  }
+
+  const supprimerSection = async (id) => {
+    await supabase.from('sections').delete().eq('id', id)
+    chargerSections(campagneSelectionnee.id)
+    chargerCampagneProduits(campagneSelectionnee.id)
   }
 
   const ajouterProduit = async () => {
@@ -86,9 +116,10 @@ export default function AdminCampagnes() {
       campagne_id: campagneSelectionnee.id,
       produit_id: parseInt(nouveauProduit.produit_id),
       conditionnement: nouveauProduit.conditionnement,
-      description: nouveauProduit.description
+      description: nouveauProduit.description,
+      section_id: nouveauProduit.section_id ? parseInt(nouveauProduit.section_id) : null
     })
-    setNouveauProduit({ produit_id: '', conditionnement: '', description: '' })
+    setNouveauProduit({ produit_id: '', conditionnement: '', description: '', section_id: '' })
     chargerCampagneProduits(campagneSelectionnee.id)
     setMessage('Produit ajoute !')
     setTimeout(() => setMessage(''), 2000)
@@ -102,9 +133,7 @@ export default function AdminCampagnes() {
   const importerExcel = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-
     setImportMessage('Lecture du fichier...')
-
     const reader = new FileReader()
     reader.onload = async (evt) => {
       try {
@@ -112,52 +141,34 @@ export default function AdminCampagnes() {
         const workbook = XLSX.read(data, { type: 'array' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
-
-        // Ignorer la ligne d'entete et les lignes vides
         const lignes = rows.slice(1).filter(row => row[0] && row[1])
-
         let nbAjoutes = 0
         let nbErreurs = 0
-
         for (const row of lignes) {
           const nomProduit = String(row[0]).trim()
           const conditionnement = String(row[1]).trim()
           const description = row[2] ? String(row[2]).trim() : ''
-
-          // Chercher le produit existant ou le créer
           let produit = produits.find(p => p.nom.toLowerCase() === nomProduit.toLowerCase())
-
           if (!produit) {
-            // Creer le produit s'il n'existe pas
             const { data: newProduit, error } = await supabase
               .from('produits')
               .insert({ nom: nomProduit, unite: '' })
               .select()
               .single()
-
-            if (error) {
-              nbErreurs++
-              continue
-            }
+            if (error) { nbErreurs++; continue }
             produit = newProduit
           }
-
-          // Verifier si deja dans la campagne
           const dejaPresent = campagneProduits.find(cp => cp.produit_id === produit.id)
           if (dejaPresent) continue
-
-          // Ajouter a la campagne
           const { error } = await supabase.from('campagne_produits').insert({
             campagne_id: campagneSelectionnee.id,
             produit_id: produit.id,
             conditionnement,
             description
           })
-
           if (error) nbErreurs++
           else nbAjoutes++
         }
-
         await chargerProduits()
         await chargerCampagneProduits(campagneSelectionnee.id)
         setImportMessage(`Import termine : ${nbAjoutes} produit(s) ajoute(s)${nbErreurs > 0 ? `, ${nbErreurs} erreur(s)` : ''} !`)
@@ -171,6 +182,18 @@ export default function AdminCampagnes() {
 
   const getStatutColor = (statut) => {
     return statut === 'ouverte' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+  }
+
+  // Grouper les produits par section
+  const produitsParSection = () => {
+    const groupes = {}
+    // Produits sans section
+    groupes['sans_section'] = campagneProduits.filter(cp => !cp.section_id)
+    // Produits par section
+    sections.forEach(s => {
+      groupes[s.id] = campagneProduits.filter(cp => cp.section_id === s.id)
+    })
+    return groupes
   }
 
   return (
@@ -218,10 +241,7 @@ export default function AdminCampagnes() {
               />
             </div>
           </div>
-          <button
-            onClick={creerCampagne}
-            className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800"
-          >
+          <button onClick={creerCampagne} className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800">
             Creer la campagne
           </button>
           {message && <p className="mt-3 text-green-600 text-sm">{message}</p>}
@@ -271,6 +291,35 @@ export default function AdminCampagnes() {
               Produits de : {campagneSelectionnee.nom}
             </h2>
 
+            {/* Gestion des sections */}
+            <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
+              <p className="text-sm font-semibold text-blue-700 mb-3">Sections</p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {sections.map((s) => (
+                  <span key={s.id} className="flex items-center gap-1 bg-white text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-sm">
+                    {s.nom}
+                    <button onClick={() => supprimerSection(s.id)} className="ml-1 text-blue-400 hover:text-red-500">×</button>
+                  </span>
+                ))}
+                {sections.length === 0 && <p className="text-sm text-blue-400">Aucune section</p>}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ex: Produits Colza"
+                  value={nouvelleSection}
+                  onChange={(e) => setNouvelleSection(e.target.value)}
+                  className="flex-1 border border-blue-200 rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={ajouterSection}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+
             {/* Import Excel */}
             <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-200">
               <p className="text-sm font-semibold text-green-700 mb-3">Importer depuis Excel</p>
@@ -284,21 +333,14 @@ export default function AdminCampagnes() {
                 </a>
                 <label className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 cursor-pointer">
                   Importer un fichier Excel
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={importerExcel}
-                    className="hidden"
-                  />
+                  <input type="file" accept=".xlsx,.xls" onChange={importerExcel} className="hidden" />
                 </label>
               </div>
-              {importMessage && (
-                <p className="mt-2 text-sm text-green-700">{importMessage}</p>
-              )}
+              {importMessage && <p className="mt-2 text-sm text-green-700">{importMessage}</p>}
             </div>
 
             {/* Ajout manuel */}
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-4 gap-4 mb-4">
               <select
                 value={nouveauProduit.produit_id}
                 onChange={(e) => setNouveauProduit({ ...nouveauProduit, produit_id: e.target.value })}
@@ -311,7 +353,7 @@ export default function AdminCampagnes() {
               </select>
               <input
                 type="text"
-                placeholder="Conditionnement (ex: sac 25kg)"
+                placeholder="Conditionnement"
                 value={nouveauProduit.conditionnement}
                 onChange={(e) => setNouveauProduit({ ...nouveauProduit, conditionnement: e.target.value })}
                 className="border border-gray-300 rounded-lg px-3 py-2"
@@ -323,6 +365,16 @@ export default function AdminCampagnes() {
                 onChange={(e) => setNouveauProduit({ ...nouveauProduit, description: e.target.value })}
                 className="border border-gray-300 rounded-lg px-3 py-2"
               />
+              <select
+                value={nouveauProduit.section_id}
+                onChange={(e) => setNouveauProduit({ ...nouveauProduit, section_id: e.target.value })}
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="">Sans section</option>
+                {sections.map((s) => (
+                  <option key={s.id} value={s.id}>{s.nom}</option>
+                ))}
+              </select>
             </div>
             <button
               onClick={ajouterProduit}
@@ -331,33 +383,107 @@ export default function AdminCampagnes() {
               Ajouter le produit
             </button>
 
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-500 border-b">
-                  <th className="text-left pb-2">Produit</th>
-                  <th className="text-left pb-2">Conditionnement</th>
-                  <th className="text-left pb-2">Description</th>
-                  <th className="text-right pb-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campagneProduits.map((cp) => (
-                  <tr key={cp.id} className="border-b last:border-0">
-                    <td className="py-2">{cp.produits?.nom}</td>
-                    <td className="py-2">{cp.conditionnement}</td>
-                    <td className="py-2 text-gray-500">{cp.description}</td>
-                    <td className="py-2 text-right">
-                      <button
-                        onClick={() => supprimerProduitCampagne(cp.id)}
-                        className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
-                      >
-                        Supprimer
-                      </button>
-                    </td>
+            {/* Produits groupes par section */}
+            {sections.length > 0 ? (
+              <div>
+                {sections.map((section) => {
+                  const produitsDeLaSection = campagneProduits.filter(cp => cp.section_id === section.id)
+                  return (
+                    <div key={section.id} className="mb-6">
+                      <h3 className="font-semibold text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mb-2">
+                        {section.nom} ({produitsDeLaSection.length} produit{produitsDeLaSection.length > 1 ? 's' : ''})
+                      </h3>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-gray-500 border-b">
+                            <th className="text-left pb-2">Produit</th>
+                            <th className="text-left pb-2">Conditionnement</th>
+                            <th className="text-left pb-2">Description</th>
+                            <th className="text-right pb-2">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {produitsDeLaSection.map((cp) => (
+                            <tr key={cp.id} className="border-b last:border-0">
+                              <td className="py-2">{cp.produits?.nom}</td>
+                              <td className="py-2">{cp.conditionnement}</td>
+                              <td className="py-2 text-gray-500">{cp.description}</td>
+                              <td className="py-2 text-right">
+                                <button
+                                  onClick={() => supprimerProduitCampagne(cp.id)}
+                                  className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
+                                >
+                                  Supprimer
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {produitsDeLaSection.length === 0 && (
+                            <tr><td colSpan={4} className="py-2 text-gray-400 text-center">Aucun produit dans cette section</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })}
+
+                {/* Produits sans section */}
+                {campagneProduits.filter(cp => !cp.section_id).length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="font-semibold text-gray-500 bg-gray-50 px-4 py-2 rounded-lg mb-2">
+                      Sans section
+                    </h3>
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {campagneProduits.filter(cp => !cp.section_id).map((cp) => (
+                          <tr key={cp.id} className="border-b last:border-0">
+                            <td className="py-2">{cp.produits?.nom}</td>
+                            <td className="py-2">{cp.conditionnement}</td>
+                            <td className="py-2 text-gray-500">{cp.description}</td>
+                            <td className="py-2 text-right">
+                              <button
+                                onClick={() => supprimerProduitCampagne(cp.id)}
+                                className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
+                              >
+                                Supprimer
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-gray-500 border-b">
+                    <th className="text-left pb-2">Produit</th>
+                    <th className="text-left pb-2">Conditionnement</th>
+                    <th className="text-left pb-2">Description</th>
+                    <th className="text-right pb-2">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {campagneProduits.map((cp) => (
+                    <tr key={cp.id} className="border-b last:border-0">
+                      <td className="py-2">{cp.produits?.nom}</td>
+                      <td className="py-2">{cp.conditionnement}</td>
+                      <td className="py-2 text-gray-500">{cp.description}</td>
+                      <td className="py-2 text-right">
+                        <button
+                          onClick={() => supprimerProduitCampagne(cp.id)}
+                          className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
+                        >
+                          Supprimer
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </div>

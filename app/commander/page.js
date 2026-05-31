@@ -9,6 +9,7 @@ export default function Commander() {
   const [campagnes, setCampagnes] = useState([])
   const [campagneSelectionnee, setCampagneSelectionnee] = useState(null)
   const [produits, setProduits] = useState([])
+  const [sections, setSections] = useState([])
   const [quantites, setQuantites] = useState({})
   const [dejaCommande, setDejaCommande] = useState(false)
   const [message, setMessage] = useState('')
@@ -49,6 +50,14 @@ export default function Commander() {
 
     setDejaCommande(!!commandeExistante)
 
+    // Charger les sections
+    const { data: sectionsData } = await supabase
+      .from('sections')
+      .select('*')
+      .eq('campagne_id', campagne.id)
+      .order('ordre')
+    setSections(sectionsData || [])
+
     // Charger les produits de la campagne
     const { data: produitsData } = await supabase
       .from('campagne_produits')
@@ -75,7 +84,6 @@ export default function Commander() {
       return
     }
 
-    // Creer la commande
     const { data: commande, error } = await supabase
       .from('commandes')
       .insert({ user_id: user.id, campagne_id: campagneSelectionnee.id, statut: 'en cours' })
@@ -88,7 +96,6 @@ export default function Commander() {
       return
     }
 
-    // Ajouter les produits
     const commandeProduits = lignes.map((l) => ({
       commande_id: commande.id,
       produit_id: produits.find(p => p.id === l.campagne_produit_id)?.produits?.id || l.campagne_produit_id,
@@ -101,6 +108,37 @@ export default function Commander() {
     setLoading(false)
     setTimeout(() => router.push('/dashboard'), 2000)
   }
+
+  const renderProduits = (produitsFiltres) => (
+    <table className="w-full text-sm mb-4">
+      <thead>
+        <tr className="text-gray-500 border-b">
+          <th className="text-left pb-2">Produit</th>
+          <th className="text-left pb-2">Conditionnement</th>
+          <th className="text-left pb-2">Description</th>
+          <th className="text-right pb-2">Quantite</th>
+        </tr>
+      </thead>
+      <tbody>
+        {produitsFiltres.map((cp) => (
+          <tr key={cp.id} className="border-b last:border-0">
+            <td className="py-3 font-medium">{cp.produits?.nom}</td>
+            <td className="py-3 text-gray-500">{cp.conditionnement}</td>
+            <td className="py-3 text-gray-400 text-xs">{cp.description}</td>
+            <td className="py-3 text-right">
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                onChange={(e) => setQuantites({ ...quantites, [cp.id]: e.target.value })}
+                className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center"
+              />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 
   return (
     <main className="min-h-screen bg-green-50 p-8">
@@ -140,7 +178,7 @@ export default function Commander() {
         {/* Produits de la campagne */}
         {campagneSelectionnee && (
           <div className="bg-white rounded-xl shadow-sm p-6 border border-green-100">
-            <h2 className="text-xl font-semibold text-green-700 mb-4">{campagneSelectionnee.nom}</h2>
+            <h2 className="text-xl font-semibold text-green-700 mb-6">{campagneSelectionnee.nom}</h2>
 
             {dejaCommande ? (
               <div className="text-center py-8">
@@ -149,39 +187,39 @@ export default function Commander() {
               </div>
             ) : (
               <>
-                <table className="w-full text-sm mb-6">
-                  <thead>
-                    <tr className="text-gray-500 border-b">
-                      <th className="text-left pb-2">Produit</th>
-                      <th className="text-left pb-2">Conditionnement</th>
-                      <th className="text-left pb-2">Description</th>
-                      <th className="text-right pb-2">Quantite</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {produits.map((cp) => (
-                      <tr key={cp.id} className="border-b last:border-0">
-                        <td className="py-3 font-medium">{cp.produits?.nom}</td>
-                        <td className="py-3 text-gray-500">{cp.conditionnement}</td>
-                        <td className="py-3 text-gray-400 text-xs">{cp.description}</td>
-                        <td className="py-3 text-right">
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="0"
-                            onChange={(e) => setQuantites({ ...quantites, [cp.id]: e.target.value })}
-                            className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {sections.length > 0 ? (
+                  <div>
+                    {sections.map((section) => {
+                      const produitsDeLaSection = produits.filter(cp => cp.section_id === section.id)
+                      if (produitsDeLaSection.length === 0) return null
+                      return (
+                        <div key={section.id} className="mb-6">
+                          <h3 className="font-semibold text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mb-3">
+                            {section.nom}
+                          </h3>
+                          {renderProduits(produitsDeLaSection)}
+                        </div>
+                      )
+                    })}
+
+                    {/* Produits sans section */}
+                    {produits.filter(cp => !cp.section_id).length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="font-semibold text-gray-500 bg-gray-50 px-4 py-2 rounded-lg mb-3">
+                          Autres produits
+                        </h3>
+                        {renderProduits(produits.filter(cp => !cp.section_id))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  renderProduits(produits)
+                )}
 
                 <button
                   onClick={handleCommander}
                   disabled={loading}
-                  className="w-full bg-green-700 text-white py-3 rounded-xl text-lg hover:bg-green-800 disabled:opacity-50"
+                  className="w-full bg-green-700 text-white py-3 rounded-xl text-lg hover:bg-green-800 disabled:opacity-50 mt-4"
                 >
                   {loading ? 'Envoi...' : 'Envoyer ma commande'}
                 </button>
