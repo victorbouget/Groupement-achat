@@ -29,9 +29,21 @@ export default function Admin() {
   const chargerCommandes = async () => {
     const { data } = await supabase
       .from('commandes')
-      .select(`id, date_commande, statut, user_id, commande_produits (quantite, produits (nom, unite))`)
+      .select(`id, date_commande, statut, user_id, campagnes (nom), commande_produits (quantite, produits (nom, unite))`)
       .order('date_commande', { ascending: false })
-    setCommandes(data || [])
+
+    const userIds = [...new Set((data || []).map(c => c.user_id))]
+    const { data: profils } = await supabase
+      .from('profils')
+      .select('user_id, nom, prenom, societe')
+      .in('user_id', userIds)
+
+    const commandesAvecProfils = (data || []).map(c => ({
+      ...c,
+      profil: profils?.find(p => p.user_id === c.user_id)
+    }))
+
+    setCommandes(commandesAvecProfils)
   }
 
   const chargerProduits = async () => {
@@ -117,7 +129,12 @@ export default function Admin() {
                     <span className={`px-3 py-1 rounded-full text-sm ${getStatutColor(commande.statut)}`}>{commande.statut}</span>
                   </div>
                   <p className="text-sm text-gray-400 mb-2">{new Date(commande.date_commande).toLocaleDateString('fr-FR')}</p>
-                  <p className="text-sm text-gray-500 mb-4">Adherent : {commande.user_id}</p>
+                  <p className="text-sm text-gray-500">
+                    {commande.profil ? `${commande.profil.prenom} ${commande.profil.nom} - ${commande.profil.societe}` : commande.user_id}
+                  </p>
+                  {commande.campagnes?.nom && (
+                    <p className="text-sm text-green-600 font-medium mb-4">{commande.campagnes.nom}</p>
+                  )}
                   <table className="w-full text-sm mb-4">
                     <thead>
                       <tr className="text-gray-500 border-b">
