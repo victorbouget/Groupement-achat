@@ -10,8 +10,13 @@ export default function Home() {
         Bienvenue sur la plateforme de commandes groupées
       </p>
       <Link href="/login">
-        <button className="bg-green-700 text-white px-6 py-3 rounded-lg text-lg hover:bg-green-800">
+        <button className="bg-green-700 text-white px-6 py-3 rounded-lg text-lg hover:bg-green-800 mb-4">
           Se connecter
+        </button>
+      </Link>
+      <Link href="/qui-sommes-nous">
+        <button className="bg-white text-green-700 border border-green-300 px-6 py-3 rounded-lg text-lg hover:bg-green-50">
+          Qui sommes-nous ?
         </button>
       </Link>
     </main>
