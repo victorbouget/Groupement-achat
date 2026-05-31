@@ -14,12 +14,13 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Groupement de l'Ille",
   description: "Plateforme de commandes groupees",
-    manifest: '/manifest.json',
+  manifest: '/manifest.json',
   themeColor: '#15803d',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: "Groupement de l'Ille",
+  },
 };
 
 export default function RootLayout({ children }) {
