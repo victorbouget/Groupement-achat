@@ -39,6 +39,7 @@ export default function Login() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
           className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4"
         />
         <input
@@ -46,6 +47,7 @@ export default function Login() {
           placeholder="Mot de passe"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
           className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-4"
         />
         <button
