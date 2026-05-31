@@ -15,6 +15,7 @@ export default function AdminCampagnes() {
   const [sections, setSections] = useState([])
   const [nouvelleSection, setNouvelleSection] = useState('')
   const [nouveauProduit, setNouveauProduit] = useState({ produit_id: '', conditionnement: '', description: '', section_id: '' })
+  const [produitEnEdition, setProduitEnEdition] = useState(null)
   const [message, setMessage] = useState('')
   const [importMessage, setImportMessage] = useState('')
   const router = useRouter()
@@ -22,10 +23,7 @@ export default function AdminCampagnes() {
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
+      if (!user) { router.push('/login'); return }
       chargerCampagnes()
       chargerProduits()
     }
@@ -43,11 +41,7 @@ export default function AdminCampagnes() {
   }
 
   const chargerSections = async (campagneId) => {
-    const { data } = await supabase
-      .from('sections')
-      .select('*')
-      .eq('campagne_id', campagneId)
-      .order('ordre')
+    const { data } = await supabase.from('sections').select('*').eq('campagne_id', campagneId).order('ordre')
     setSections(data || [])
   }
 
@@ -60,10 +54,7 @@ export default function AdminCampagnes() {
   }
 
   const creerCampagne = async () => {
-    if (!nouvelle.nom || !nouvelle.date_debut || !nouvelle.date_fin) {
-      setMessage('Remplis tous les champs !')
-      return
-    }
+    if (!nouvelle.nom || !nouvelle.date_debut || !nouvelle.date_fin) { setMessage('Remplis tous les champs !'); return }
     await supabase.from('campagnes').insert(nouvelle)
     setNouvelle({ nom: '', date_debut: '', date_fin: '', statut: 'ouverte' })
     setMessage('Campagne creee !')
@@ -87,16 +78,12 @@ export default function AdminCampagnes() {
     chargerCampagneProduits(campagne.id)
     chargerSections(campagne.id)
     setImportMessage('')
+    setProduitEnEdition(null)
   }
 
   const ajouterSection = async () => {
     if (!nouvelleSection) return
-    const ordre = sections.length + 1
-    await supabase.from('sections').insert({
-      campagne_id: campagneSelectionnee.id,
-      nom: nouvelleSection,
-      ordre
-    })
+    await supabase.from('sections').insert({ campagne_id: campagneSelectionnee.id, nom: nouvelleSection, ordre: sections.length + 1 })
     setNouvelleSection('')
     chargerSections(campagneSelectionnee.id)
   }
@@ -108,10 +95,7 @@ export default function AdminCampagnes() {
   }
 
   const ajouterProduit = async () => {
-    if (!nouveauProduit.produit_id || !nouveauProduit.conditionnement) {
-      setMessage('Choisis un produit et un conditionnement !')
-      return
-    }
+    if (!nouveauProduit.produit_id || !nouveauProduit.conditionnement) { setMessage('Choisis un produit et un conditionnement !'); return }
     await supabase.from('campagne_produits').insert({
       campagne_id: campagneSelectionnee.id,
       produit_id: parseInt(nouveauProduit.produit_id),
@@ -130,6 +114,19 @@ export default function AdminCampagnes() {
     chargerCampagneProduits(campagneSelectionnee.id)
   }
 
+  const modifierProduit = async () => {
+    if (!produitEnEdition) return
+    await supabase.from('campagne_produits').update({
+      conditionnement: produitEnEdition.conditionnement,
+      description: produitEnEdition.description,
+      section_id: produitEnEdition.section_id ? parseInt(produitEnEdition.section_id) : null
+    }).eq('id', produitEnEdition.id)
+    setProduitEnEdition(null)
+    chargerCampagneProduits(campagneSelectionnee.id)
+    setMessage('Produit modifie !')
+    setTimeout(() => setMessage(''), 2000)
+  }
+
   const importerExcel = async (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -142,30 +139,20 @@ export default function AdminCampagnes() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
         const lignes = rows.slice(1).filter(row => row[0] && row[1])
-        let nbAjoutes = 0
-        let nbErreurs = 0
+        let nbAjoutes = 0, nbErreurs = 0
         for (const row of lignes) {
           const nomProduit = String(row[0]).trim()
           const conditionnement = String(row[1]).trim()
           const description = row[2] ? String(row[2]).trim() : ''
           let produit = produits.find(p => p.nom.toLowerCase() === nomProduit.toLowerCase())
           if (!produit) {
-            const { data: newProduit, error } = await supabase
-              .from('produits')
-              .insert({ nom: nomProduit, unite: '' })
-              .select()
-              .single()
+            const { data: newProduit, error } = await supabase.from('produits').insert({ nom: nomProduit, unite: '' }).select().single()
             if (error) { nbErreurs++; continue }
             produit = newProduit
           }
           const dejaPresent = campagneProduits.find(cp => cp.produit_id === produit.id)
           if (dejaPresent) continue
-          const { error } = await supabase.from('campagne_produits').insert({
-            campagne_id: campagneSelectionnee.id,
-            produit_id: produit.id,
-            conditionnement,
-            description
-          })
+          const { error } = await supabase.from('campagne_produits').insert({ campagne_id: campagneSelectionnee.id, produit_id: produit.id, conditionnement, description })
           if (error) nbErreurs++
           else nbAjoutes++
         }
@@ -180,31 +167,104 @@ export default function AdminCampagnes() {
     reader.readAsArrayBuffer(file)
   }
 
-  const getStatutColor = (statut) => {
-    return statut === 'ouverte' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-  }
+  const getStatutColor = (statut) => statut === 'ouverte' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
 
-  // Grouper les produits par section
-  const produitsParSection = () => {
-    const groupes = {}
-    // Produits sans section
-    groupes['sans_section'] = campagneProduits.filter(cp => !cp.section_id)
-    // Produits par section
-    sections.forEach(s => {
-      groupes[s.id] = campagneProduits.filter(cp => cp.section_id === s.id)
-    })
-    return groupes
-  }
+  const renderTableProduits = (produitsFiltres) => (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-gray-500 border-b">
+          <th className="text-left pb-2">Produit</th>
+          <th className="text-left pb-2">Conditionnement</th>
+          <th className="text-left pb-2">Description</th>
+          <th className="text-left pb-2">Section</th>
+          <th className="text-right pb-2">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {produitsFiltres.map((cp) => (
+          <tr key={cp.id} className="border-b last:border-0">
+            {produitEnEdition?.id === cp.id ? (
+              <>
+                <td className="py-2 font-medium">{cp.produits?.nom}</td>
+                <td className="py-2">
+                  <input
+                    type="text"
+                    value={produitEnEdition.conditionnement}
+                    onChange={(e) => setProduitEnEdition({ ...produitEnEdition, conditionnement: e.target.value })}
+                    className="w-full border border-green-300 rounded px-2 py-1 text-sm"
+                  />
+                </td>
+                <td className="py-2">
+                  <input
+                    type="text"
+                    value={produitEnEdition.description || ''}
+                    onChange={(e) => setProduitEnEdition({ ...produitEnEdition, description: e.target.value })}
+                    className="w-full border border-green-300 rounded px-2 py-1 text-sm"
+                  />
+                </td>
+                <td className="py-2">
+                  <select
+                    value={produitEnEdition.section_id || ''}
+                    onChange={(e) => setProduitEnEdition({ ...produitEnEdition, section_id: e.target.value })}
+                    className="border border-green-300 rounded px-2 py-1 text-sm"
+                  >
+                    <option value="">Sans section</option>
+                    {sections.map((s) => (
+                      <option key={s.id} value={s.id}>{s.nom}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="py-2 text-right">
+                  <div className="flex gap-1 justify-end">
+                    <button onClick={modifierProduit} className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200">
+                      Sauvegarder
+                    </button>
+                    <button onClick={() => setProduitEnEdition(null)} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200">
+                      Annuler
+                    </button>
+                  </div>
+                </td>
+              </>
+            ) : (
+              <>
+                <td className="py-2 font-medium">{cp.produits?.nom}</td>
+                <td className="py-2">{cp.conditionnement}</td>
+                <td className="py-2 text-gray-500">{cp.description}</td>
+                <td className="py-2 text-gray-400 text-xs">{cp.sections?.nom || '-'}</td>
+                <td className="py-2 text-right">
+                  <div className="flex gap-1 justify-end">
+                    <button
+                      onClick={() => setProduitEnEdition({ ...cp, section_id: cp.section_id || '' })}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => supprimerProduitCampagne(cp.id)}
+                      className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </td>
+              </>
+            )}
+          </tr>
+        ))}
+        {produitsFiltres.length === 0 && (
+          <tr><td colSpan={5} className="py-2 text-gray-400 text-center">Aucun produit</td></tr>
+        )}
+      </tbody>
+    </table>
+  )
 
   return (
     <main className="min-h-screen bg-green-50 p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-green-800">Gestion des campagnes</h1>
           <Link href="/admin">
-            <button className="bg-green-100 text-green-800 px-4 py-2 rounded-lg hover:bg-green-200">
-              Retour admin
-            </button>
+            <button className="bg-green-100 text-green-800 px-4 py-2 rounded-lg hover:bg-green-200">Retour admin</button>
           </Link>
         </div>
 
@@ -214,70 +274,36 @@ export default function AdminCampagnes() {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="col-span-2">
               <label className="block text-sm text-gray-600 mb-1">Nom de la campagne</label>
-              <input
-                type="text"
-                placeholder="Ex: Semences Mais 2026"
-                value={nouvelle.nom}
-                onChange={(e) => setNouvelle({ ...nouvelle, nom: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
+              <input type="text" placeholder="Ex: Semences Mais 2026" value={nouvelle.nom} onChange={(e) => setNouvelle({ ...nouvelle, nom: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2" />
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">Date d'ouverture</label>
-              <input
-                type="date"
-                value={nouvelle.date_debut}
-                onChange={(e) => setNouvelle({ ...nouvelle, date_debut: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
+              <input type="date" value={nouvelle.date_debut} onChange={(e) => setNouvelle({ ...nouvelle, date_debut: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2" />
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">Date de fermeture</label>
-              <input
-                type="date"
-                value={nouvelle.date_fin}
-                onChange={(e) => setNouvelle({ ...nouvelle, date_fin: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              />
+              <input type="date" value={nouvelle.date_fin} onChange={(e) => setNouvelle({ ...nouvelle, date_fin: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2" />
             </div>
           </div>
-          <button onClick={creerCampagne} className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800">
-            Creer la campagne
-          </button>
+          <button onClick={creerCampagne} className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800">Creer la campagne</button>
           {message && <p className="mt-3 text-green-600 text-sm">{message}</p>}
         </div>
 
         {/* Liste des campagnes */}
         <div className="grid grid-cols-1 gap-4 mb-6">
           {campagnes.map((campagne) => (
-            <div
-              key={campagne.id}
-              className={`bg-white rounded-xl shadow-sm p-6 border cursor-pointer ${campagneSelectionnee?.id === campagne.id ? 'border-green-500' : 'border-green-100'}`}
-              onClick={() => selectionnerCampagne(campagne)}
-            >
+            <div key={campagne.id} className={`bg-white rounded-xl shadow-sm p-6 border cursor-pointer ${campagneSelectionnee?.id === campagne.id ? 'border-green-500' : 'border-green-100'}`} onClick={() => selectionnerCampagne(campagne)}>
               <div className="flex justify-between items-center">
                 <div>
                   <p className="font-semibold text-gray-800">{campagne.nom}</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {new Date(campagne.date_debut).toLocaleDateString('fr-FR')} → {new Date(campagne.date_fin).toLocaleDateString('fr-FR')}
-                  </p>
+                  <p className="text-sm text-gray-400 mt-1">{new Date(campagne.date_debut).toLocaleDateString('fr-FR')} → {new Date(campagne.date_fin).toLocaleDateString('fr-FR')}</p>
                 </div>
                 <div className="flex gap-2 items-center">
-                  <span className={`px-3 py-1 rounded-full text-sm ${getStatutColor(campagne.statut)}`}>
-                    {campagne.statut}
-                  </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); changerStatut(campagne.id, campagne.statut === 'ouverte' ? 'fermee' : 'ouverte') }}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200"
-                  >
+                  <span className={`px-3 py-1 rounded-full text-sm ${getStatutColor(campagne.statut)}`}>{campagne.statut}</span>
+                  <button onClick={(e) => { e.stopPropagation(); changerStatut(campagne.id, campagne.statut === 'ouverte' ? 'fermee' : 'ouverte') }} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200">
                     {campagne.statut === 'ouverte' ? 'Fermer' : 'Ouvrir'}
                   </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); supprimerCampagne(campagne.id) }}
-                    className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
-                  >
-                    Supprimer
-                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); supprimerCampagne(campagne.id) }} className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200">Supprimer</button>
                 </div>
               </div>
             </div>
@@ -287,11 +313,9 @@ export default function AdminCampagnes() {
         {/* Produits de la campagne selectionnee */}
         {campagneSelectionnee && (
           <div className="bg-white rounded-xl shadow-sm p-6 border border-green-100">
-            <h2 className="text-xl font-semibold text-green-700 mb-4">
-              Produits de : {campagneSelectionnee.nom}
-            </h2>
+            <h2 className="text-xl font-semibold text-green-700 mb-4">Produits de : {campagneSelectionnee.nom}</h2>
 
-            {/* Gestion des sections */}
+            {/* Sections */}
             <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
               <p className="text-sm font-semibold text-blue-700 mb-3">Sections</p>
               <div className="flex flex-wrap gap-2 mb-3">
@@ -304,19 +328,8 @@ export default function AdminCampagnes() {
                 {sections.length === 0 && <p className="text-sm text-blue-400">Aucune section</p>}
               </div>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Ex: Produits Colza"
-                  value={nouvelleSection}
-                  onChange={(e) => setNouvelleSection(e.target.value)}
-                  className="flex-1 border border-blue-200 rounded-lg px-3 py-2 text-sm"
-                />
-                <button
-                  onClick={ajouterSection}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
-                >
-                  Ajouter
-                </button>
+                <input type="text" placeholder="Ex: Produits Colza" value={nouvelleSection} onChange={(e) => setNouvelleSection(e.target.value)} className="flex-1 border border-blue-200 rounded-lg px-3 py-2 text-sm" />
+                <button onClick={ajouterSection} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Ajouter</button>
               </div>
             </div>
 
@@ -324,13 +337,7 @@ export default function AdminCampagnes() {
             <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-200">
               <p className="text-sm font-semibold text-green-700 mb-3">Importer depuis Excel</p>
               <div className="flex gap-3 items-center">
-                <a
-                  href="/modele_import_produits.xlsx"
-                  download
-                  className="bg-white text-green-700 border border-green-300 px-4 py-2 rounded-lg text-sm hover:bg-green-50"
-                >
-                  Telecharger le modele
-                </a>
+                <a href="/modele_import_produits.xlsx" download className="bg-white text-green-700 border border-green-300 px-4 py-2 rounded-lg text-sm hover:bg-green-50">Telecharger le modele</a>
                 <label className="bg-green-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-800 cursor-pointer">
                   Importer un fichier Excel
                   <input type="file" accept=".xlsx,.xls" onChange={importerExcel} className="hidden" />
@@ -341,148 +348,43 @@ export default function AdminCampagnes() {
 
             {/* Ajout manuel */}
             <div className="grid grid-cols-4 gap-4 mb-4">
-              <select
-                value={nouveauProduit.produit_id}
-                onChange={(e) => setNouveauProduit({ ...nouveauProduit, produit_id: e.target.value })}
-                className="border border-gray-300 rounded-lg px-3 py-2"
-              >
+              <select value={nouveauProduit.produit_id} onChange={(e) => {
+                const produitChoisi = produits.find(p => p.id === parseInt(e.target.value))
+                setNouveauProduit({ ...nouveauProduit, produit_id: e.target.value, description: produitChoisi?.description || '' })
+              }} className="border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">Choisir un produit...</option>
-                {produits.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nom}</option>
-                ))}
+                {produits.map((p) => (<option key={p.id} value={p.id}>{p.nom}</option>))}
               </select>
-              <input
-                type="text"
-                placeholder="Conditionnement"
-                value={nouveauProduit.conditionnement}
-                onChange={(e) => setNouveauProduit({ ...nouveauProduit, conditionnement: e.target.value })}
-                className="border border-gray-300 rounded-lg px-3 py-2"
-              />
-              <input
-                type="text"
-                placeholder="Description (optionnel)"
-                value={nouveauProduit.description}
-                onChange={(e) => setNouveauProduit({ ...nouveauProduit, description: e.target.value })}
-                className="border border-gray-300 rounded-lg px-3 py-2"
-              />
-              <select
-                value={nouveauProduit.section_id}
-                onChange={(e) => setNouveauProduit({ ...nouveauProduit, section_id: e.target.value })}
-                className="border border-gray-300 rounded-lg px-3 py-2"
-              >
+              <input type="text" placeholder="Conditionnement" value={nouveauProduit.conditionnement} onChange={(e) => setNouveauProduit({ ...nouveauProduit, conditionnement: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2" />
+              <input type="text" placeholder="Description (optionnel)" value={nouveauProduit.description} onChange={(e) => setNouveauProduit({ ...nouveauProduit, description: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2" />
+              <select value={nouveauProduit.section_id} onChange={(e) => setNouveauProduit({ ...nouveauProduit, section_id: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">Sans section</option>
-                {sections.map((s) => (
-                  <option key={s.id} value={s.id}>{s.nom}</option>
-                ))}
+                {sections.map((s) => (<option key={s.id} value={s.id}>{s.nom}</option>))}
               </select>
             </div>
-            <button
-              onClick={ajouterProduit}
-              className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 mb-6"
-            >
-              Ajouter le produit
-            </button>
+            <button onClick={ajouterProduit} className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 mb-6">Ajouter le produit</button>
 
             {/* Produits groupes par section */}
             {sections.length > 0 ? (
               <div>
                 {sections.map((section) => {
-                  const produitsDeLaSection = campagneProduits.filter(cp => cp.section_id === section.id)
+                  const pdts = campagneProduits.filter(cp => cp.section_id === section.id)
                   return (
                     <div key={section.id} className="mb-6">
-                      <h3 className="font-semibold text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mb-2">
-                        {section.nom} ({produitsDeLaSection.length} produit{produitsDeLaSection.length > 1 ? 's' : ''})
-                      </h3>
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-gray-500 border-b">
-                            <th className="text-left pb-2">Produit</th>
-                            <th className="text-left pb-2">Conditionnement</th>
-                            <th className="text-left pb-2">Description</th>
-                            <th className="text-right pb-2">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {produitsDeLaSection.map((cp) => (
-                            <tr key={cp.id} className="border-b last:border-0">
-                              <td className="py-2">{cp.produits?.nom}</td>
-                              <td className="py-2">{cp.conditionnement}</td>
-                              <td className="py-2 text-gray-500">{cp.description}</td>
-                              <td className="py-2 text-right">
-                                <button
-                                  onClick={() => supprimerProduitCampagne(cp.id)}
-                                  className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
-                                >
-                                  Supprimer
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                          {produitsDeLaSection.length === 0 && (
-                            <tr><td colSpan={4} className="py-2 text-gray-400 text-center">Aucun produit dans cette section</td></tr>
-                          )}
-                        </tbody>
-                      </table>
+                      <h3 className="font-semibold text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mb-2">{section.nom} ({pdts.length} produit{pdts.length > 1 ? 's' : ''})</h3>
+                      {renderTableProduits(pdts)}
                     </div>
                   )
                 })}
-
-                {/* Produits sans section */}
                 {campagneProduits.filter(cp => !cp.section_id).length > 0 && (
                   <div className="mb-4">
-                    <h3 className="font-semibold text-gray-500 bg-gray-50 px-4 py-2 rounded-lg mb-2">
-                      Sans section
-                    </h3>
-                    <table className="w-full text-sm">
-                      <tbody>
-                        {campagneProduits.filter(cp => !cp.section_id).map((cp) => (
-                          <tr key={cp.id} className="border-b last:border-0">
-                            <td className="py-2">{cp.produits?.nom}</td>
-                            <td className="py-2">{cp.conditionnement}</td>
-                            <td className="py-2 text-gray-500">{cp.description}</td>
-                            <td className="py-2 text-right">
-                              <button
-                                onClick={() => supprimerProduitCampagne(cp.id)}
-                                className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
-                              >
-                                Supprimer
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <h3 className="font-semibold text-gray-500 bg-gray-50 px-4 py-2 rounded-lg mb-2">Sans section</h3>
+                    {renderTableProduits(campagneProduits.filter(cp => !cp.section_id))}
                   </div>
                 )}
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-500 border-b">
-                    <th className="text-left pb-2">Produit</th>
-                    <th className="text-left pb-2">Conditionnement</th>
-                    <th className="text-left pb-2">Description</th>
-                    <th className="text-right pb-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campagneProduits.map((cp) => (
-                    <tr key={cp.id} className="border-b last:border-0">
-                      <td className="py-2">{cp.produits?.nom}</td>
-                      <td className="py-2">{cp.conditionnement}</td>
-                      <td className="py-2 text-gray-500">{cp.description}</td>
-                      <td className="py-2 text-right">
-                        <button
-                          onClick={() => supprimerProduitCampagne(cp.id)}
-                          className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200"
-                        >
-                          Supprimer
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              renderTableProduits(campagneProduits)
             )}
           </div>
         )}

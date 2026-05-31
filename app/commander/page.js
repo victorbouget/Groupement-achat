@@ -33,6 +33,22 @@ export default function Commander() {
     init()
   }, [])
 
+  // Extraire le premier nombre du conditionnement
+  const extraireNombre = (conditionnement) => {
+    if (!conditionnement) return null
+    const match = conditionnement.match(/[\d\s]+/)
+    if (!match) return null
+    const nombre = parseFloat(match[0].replace(/\s/g, ''))
+    return isNaN(nombre) || nombre <= 0 ? null : nombre
+  }
+
+  // Generer les multiples
+  const genererMultiples = (conditionnement) => {
+    const base = extraireNombre(conditionnement)
+    if (!base) return null
+    return Array.from({ length: 100 }, (_, i) => (i + 1) * base)
+  }
+
   const selectionnerCampagne = async (campagne) => {
     setCampagneSelectionnee(campagne)
     setQuantites({})
@@ -40,7 +56,6 @@ export default function Commander() {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Verifier si l'adherent a deja commande
     const { data: commandeExistante } = await supabase
       .from('commandes')
       .select('id')
@@ -50,7 +65,6 @@ export default function Commander() {
 
     setDejaCommande(!!commandeExistante)
 
-    // Charger les sections
     const { data: sectionsData } = await supabase
       .from('sections')
       .select('*')
@@ -58,7 +72,6 @@ export default function Commander() {
       .order('ordre')
     setSections(sectionsData || [])
 
-    // Charger les produits de la campagne
     const { data: produitsData } = await supabase
       .from('campagne_produits')
       .select('*, produits(nom)')
@@ -120,22 +133,38 @@ export default function Commander() {
         </tr>
       </thead>
       <tbody>
-        {produitsFiltres.map((cp) => (
-          <tr key={cp.id} className="border-b last:border-0">
-            <td className="py-3 font-medium">{cp.produits?.nom}</td>
-            <td className="py-3 text-gray-500">{cp.conditionnement}</td>
-            <td className="py-3 text-gray-400 text-xs">{cp.description}</td>
-            <td className="py-3 text-right">
-              <input
-                type="number"
-                min="0"
-                placeholder="0"
-                onChange={(e) => setQuantites({ ...quantites, [cp.id]: e.target.value })}
-                className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center"
-              />
-            </td>
-          </tr>
-        ))}
+        {produitsFiltres.map((cp) => {
+          const multiples = genererMultiples(cp.conditionnement)
+          return (
+            <tr key={cp.id} className="border-b last:border-0">
+              <td className="py-3 font-medium">{cp.produits?.nom}</td>
+              <td className="py-3 text-gray-500">{cp.conditionnement}</td>
+              <td className="py-3 text-gray-400 text-xs">{cp.description}</td>
+              <td className="py-3 text-right">
+                {multiples ? (
+                  <select
+                    value={quantites[cp.id] || 0}
+                    onChange={(e) => setQuantites({ ...quantites, [cp.id]: e.target.value })}
+                    className="w-28 border border-gray-300 rounded-lg px-2 py-1 text-center"
+                  >
+                    <option value={0}>0</option>
+                    {multiples.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    onChange={(e) => setQuantites({ ...quantites, [cp.id]: e.target.value })}
+                    className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center"
+                  />
+                )}
+              </td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )
@@ -152,7 +181,6 @@ export default function Commander() {
           </Link>
         </div>
 
-        {/* Liste des campagnes ouvertes */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-3">Campagnes ouvertes</h2>
           {campagnes.length === 0 ? (
@@ -175,7 +203,6 @@ export default function Commander() {
           )}
         </div>
 
-        {/* Produits de la campagne */}
         {campagneSelectionnee && (
           <div className="bg-white rounded-xl shadow-sm p-6 border border-green-100">
             <h2 className="text-xl font-semibold text-green-700 mb-6">{campagneSelectionnee.nom}</h2>
@@ -201,8 +228,6 @@ export default function Commander() {
                         </div>
                       )
                     })}
-
-                    {/* Produits sans section */}
                     {produits.filter(cp => !cp.section_id).length > 0 && (
                       <div className="mb-6">
                         <h3 className="font-semibold text-gray-500 bg-gray-50 px-4 py-2 rounded-lg mb-3">
