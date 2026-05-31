@@ -65,6 +65,18 @@ export default function AdminCampagnes() {
   const changerStatut = async (id, statut) => {
     await supabase.from('campagnes').update({ statut }).eq('id', id)
     chargerCampagnes()
+
+    if (statut === 'ouverte') {
+      const campagne = campagnes.find(c => c.id === id)
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titre: 'Nouvelle campagne ouverte !',
+          corps: `La campagne "${campagne?.nom}" est maintenant ouverte. Passez votre commande !`
+        })
+      })
+    }
   }
 
   const supprimerCampagne = async (id) => {

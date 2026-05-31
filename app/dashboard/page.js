@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
+import { demanderPermissionNotification } from '../lib/firebase'
 
 export default function Dashboard() {
   const [user, setUser] = useState(null)
@@ -17,6 +18,17 @@ export default function Dashboard() {
         return
       }
       setUser(user)
+
+      // Enregistrer le service worker Firebase
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          .then((registration) => {
+            console.log('Service Worker enregistre:', registration)
+          })
+          .catch((error) => {
+            console.error('Erreur Service Worker:', error)
+          })
+      }
 
       const { data: profilData } = await supabase
         .from('profils')
@@ -44,6 +56,24 @@ export default function Dashboard() {
       }
 
       setProfil(profilData)
+
+      // Demander permission notifications et sauvegarder le token
+      const token = await demanderPermissionNotification()
+      if (token) {
+        const { data: existingToken } = await supabase
+          .from('notification_tokens')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('token', token)
+          .single()
+
+        if (!existingToken) {
+          await supabase.from('notification_tokens').insert({
+            user_id: user.id,
+            token
+          })
+        }
+      }
     }
     getUser()
   }, [])
