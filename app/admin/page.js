@@ -12,6 +12,7 @@ export default function Admin() {
   const [nouveauProduit, setNouveauProduit] = useState({ nom: '', unite: '', description: '' })
   const [produitEnEdition, setProduitEnEdition] = useState(null)
   const [message, setMessage] = useState('')
+  const [recherche, setRecherche] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -98,6 +99,15 @@ export default function Admin() {
     return 'bg-green-100 text-green-700'
   }
 
+  // Filtrer les commandes selon la recherche
+  const commandesFiltrees = commandes.filter(c => {
+    if (!recherche) return true
+    const r = recherche.toLowerCase()
+    const nomAdherent = `${c.profil?.prenom || ''} ${c.profil?.nom || ''} ${c.profil?.societe || ''}`.toLowerCase()
+    const nomCampagne = (c.campagnes?.nom || '').toLowerCase()
+    return nomAdherent.includes(r) || nomCampagne.includes(r)
+  })
+
   return (
     <main className="min-h-screen bg-green-50 p-8">
       <div className="max-w-5xl mx-auto">
@@ -119,10 +129,24 @@ export default function Admin() {
         {/* COMMANDES */}
         {onglet === 'commandes' && (
           <div>
-            {commandes.length === 0 ? (
-              <p className="text-gray-500 text-center mt-20">Aucune commande</p>
+            {/* Barre de recherche */}
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4 border border-green-100">
+              <input
+                type="text"
+                placeholder="Rechercher par adherent ou campagne..."
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+              />
+              {recherche && (
+                <p className="text-sm text-gray-400 mt-2">{commandesFiltrees.length} commande(s) trouvee(s)</p>
+              )}
+            </div>
+
+            {commandesFiltrees.length === 0 ? (
+              <p className="text-gray-500 text-center mt-20">Aucune commande trouvee</p>
             ) : (
-              commandes.map((commande) => (
+              commandesFiltrees.map((commande) => (
                 <div key={commande.id} className="bg-white rounded-xl shadow-sm p-6 mb-4 border border-green-100">
                   <div className="flex justify-between items-center mb-2">
                     <p className="font-semibold text-gray-700">Commande #{commande.id}</p>
@@ -178,27 +202,9 @@ export default function Admin() {
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-green-100">
               <h2 className="text-xl font-semibold text-green-700 mb-4">Ajouter un produit</h2>
               <div className="grid grid-cols-3 gap-4 mb-4">
-                <input
-                  type="text"
-                  placeholder="Nom du produit"
-                  value={nouveauProduit.nom}
-                  onChange={(e) => setNouveauProduit({ ...nouveauProduit, nom: e.target.value })}
-                  className="border border-gray-300 rounded-lg px-3 py-2"
-                />
-                <input
-                  type="text"
-                  placeholder="Unite (kg, litre...)"
-                  value={nouveauProduit.unite}
-                  onChange={(e) => setNouveauProduit({ ...nouveauProduit, unite: e.target.value })}
-                  className="border border-gray-300 rounded-lg px-3 py-2"
-                />
-                <input
-                  type="text"
-                  placeholder="Description (optionnel)"
-                  value={nouveauProduit.description}
-                  onChange={(e) => setNouveauProduit({ ...nouveauProduit, description: e.target.value })}
-                  className="border border-gray-300 rounded-lg px-3 py-2"
-                />
+                <input type="text" placeholder="Nom du produit" value={nouveauProduit.nom} onChange={(e) => setNouveauProduit({ ...nouveauProduit, nom: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2" />
+                <input type="text" placeholder="Unite (kg, litre...)" value={nouveauProduit.unite} onChange={(e) => setNouveauProduit({ ...nouveauProduit, unite: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2" />
+                <input type="text" placeholder="Description (optionnel)" value={nouveauProduit.description} onChange={(e) => setNouveauProduit({ ...nouveauProduit, description: e.target.value })} className="border border-gray-300 rounded-lg px-3 py-2" />
               </div>
               <button onClick={ajouterProduit} className="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800">Ajouter</button>
               {message && <p className="text-green-600 text-sm mt-2">{message}</p>}
@@ -220,15 +226,9 @@ export default function Admin() {
                     <tr key={produit.id} className="border-b last:border-0">
                       {produitEnEdition?.id === produit.id ? (
                         <>
-                          <td className="py-2">
-                            <input type="text" value={produitEnEdition.nom} onChange={(e) => setProduitEnEdition({ ...produitEnEdition, nom: e.target.value })} className="w-full border border-green-300 rounded px-2 py-1 text-sm" />
-                          </td>
-                          <td className="py-2">
-                            <input type="text" value={produitEnEdition.unite} onChange={(e) => setProduitEnEdition({ ...produitEnEdition, unite: e.target.value })} className="w-full border border-green-300 rounded px-2 py-1 text-sm" />
-                          </td>
-                          <td className="py-2">
-                            <input type="text" value={produitEnEdition.description || ''} onChange={(e) => setProduitEnEdition({ ...produitEnEdition, description: e.target.value })} className="w-full border border-green-300 rounded px-2 py-1 text-sm" />
-                          </td>
+                          <td className="py-2"><input type="text" value={produitEnEdition.nom} onChange={(e) => setProduitEnEdition({ ...produitEnEdition, nom: e.target.value })} className="w-full border border-green-300 rounded px-2 py-1 text-sm" /></td>
+                          <td className="py-2"><input type="text" value={produitEnEdition.unite} onChange={(e) => setProduitEnEdition({ ...produitEnEdition, unite: e.target.value })} className="w-full border border-green-300 rounded px-2 py-1 text-sm" /></td>
+                          <td className="py-2"><input type="text" value={produitEnEdition.description || ''} onChange={(e) => setProduitEnEdition({ ...produitEnEdition, description: e.target.value })} className="w-full border border-green-300 rounded px-2 py-1 text-sm" /></td>
                           <td className="py-2 text-right">
                             <div className="flex gap-1 justify-end">
                               <button onClick={sauvegarderProduit} className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200">Sauvegarder</button>
