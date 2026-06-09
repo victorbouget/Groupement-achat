@@ -11,7 +11,6 @@ export default function AdminInscrits() {
   const [filtres, setFiltres] = useState({})
   const [filtreOuvert, setFiltreOuvert] = useState(null)
   const [responsableDepots, setResponsableDepots] = useState({})
-  const [message, setMessage] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -46,7 +45,9 @@ export default function AdminInscrits() {
     if (respDepots) {
       respDepots.forEach((rd) => {
         if (!depotsParUser[rd.user_id]) depotsParUser[rd.user_id] = []
-        depotsParUser[rd.user_id].push(rd)
+        // Eviter les doublons
+        const dejaPresent = depotsParUser[rd.user_id].find(d => d.depot_id === rd.depot_id)
+        if (!dejaPresent) depotsParUser[rd.user_id].push(rd)
       })
     }
     setResponsableDepots(depotsParUser)
@@ -60,9 +61,14 @@ export default function AdminInscrits() {
 
   const ajouterDepotResponsable = async (userId, depotId) => {
     if (!depotId) return
-    const dejaPresent = (responsableDepots[userId] || []).find(rd => rd.depot_id === parseInt(depotId))
-    if (dejaPresent) return
-    await supabase.from('responsable_secteur').insert({ user_id: userId, depot_id: parseInt(depotId) })
+    const depotIdInt = parseInt(depotId)
+    // Verifier si deja present
+    const dejaPresent = (responsableDepots[userId] || []).find(rd => rd.depot_id === depotIdInt)
+    if (dejaPresent) {
+      alert('Ce depot est deja assigne a cet utilisateur !')
+      return
+    }
+    await supabase.from('responsable_secteur').insert({ user_id: userId, depot_id: depotIdInt })
     chargerInscrits()
   }
 
@@ -71,7 +77,6 @@ export default function AdminInscrits() {
     chargerInscrits()
   }
 
-  // Tableau plat pour les filtres
   const tableau = inscrits.map(i => ({
     ...i,
     depot_nom: i.depots?.nom || '',
@@ -144,7 +149,6 @@ export default function AdminInscrits() {
           </Link>
         </div>
 
-        {/* Filtres actifs */}
         {Object.keys(filtres).length > 0 && (
           <div className="bg-white rounded-xl shadow-sm p-4 mb-4 border border-green-100 flex flex-wrap gap-2 items-center">
             <span className="text-sm text-gray-500 font-semibold">Filtres actifs :</span>
@@ -154,9 +158,7 @@ export default function AdminInscrits() {
                 <button onClick={() => effacerFiltre(cle)} className="ml-1 text-green-500 hover:text-red-500">×</button>
               </span>
             ))}
-            <button onClick={() => setFiltres({})} className="text-sm text-red-500 hover:underline ml-2">
-              Effacer tout
-            </button>
+            <button onClick={() => setFiltres({})} className="text-sm text-red-500 hover:underline ml-2">Effacer tout</button>
           </div>
         )}
 
@@ -189,9 +191,7 @@ export default function AdminInscrits() {
                             <span className="text-sm">{valeur || '(vide)'}</span>
                           </label>
                         ))}
-                        <button onClick={() => { effacerFiltre(cle); setFiltreOuvert(null) }} className="mt-2 text-xs text-red-500 hover:underline">
-                          Effacer
-                        </button>
+                        <button onClick={() => { effacerFiltre(cle); setFiltreOuvert(null) }} className="mt-2 text-xs text-red-500 hover:underline">Effacer</button>
                       </div>
                     )}
                   </th>

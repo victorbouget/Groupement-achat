@@ -23,7 +23,6 @@ export default function Responsable() {
         return
       }
 
-      // Verifier le role
       const { data: profil } = await supabase
         .from('profils')
         .select('role')
@@ -35,7 +34,6 @@ export default function Responsable() {
         return
       }
 
-      // Charger les depots du responsable
       let depotsData
       if (profil.role === 'admin') {
         const { data } = await supabase.from('depots').select('*').order('nom')
@@ -45,11 +43,14 @@ export default function Responsable() {
           .from('responsable_secteur')
           .select('*, depots(id, nom)')
           .eq('user_id', user.id)
-        depotsData = data?.map(d => d.depots) || []
+        const tousDepots = data?.map(d => d.depots) || []
+        // Dedupliquer les depots
+        depotsData = tousDepots.filter((depot, index, self) =>
+          index === self.findIndex(d => d.id === depot.id)
+        )
       }
       setDepots(depotsData || [])
 
-      // Charger les campagnes
       const { data: campagnesData } = await supabase
         .from('campagnes')
         .select('*')
@@ -60,7 +61,6 @@ export default function Responsable() {
   }, [])
 
   const chargerAdherents = async (campagne, depot) => {
-    // Charger les produits de la campagne
     const { data: campagneProduits } = await supabase
       .from('campagne_produits')
       .select('*, produits(nom)')
@@ -69,19 +69,16 @@ export default function Responsable() {
     setColonnes(campagneProduits || [])
     setColonnesFiltrees(campagneProduits?.map(cp => cp.id) || [])
 
-    // Charger tous les adherents de ce depot
     const { data: profils } = await supabase
       .from('profils')
       .select('*, depots(nom)')
       .eq('depot_id', depot.id)
 
-    // Charger les commandes de la campagne
     const { data: commandes } = await supabase
       .from('commandes')
       .select('id, user_id, commande_produits(quantite, produit_id)')
       .eq('campagne_id', campagne.id)
 
-    // Construire le tableau
     const lignes = (profils || []).map((profil) => {
       const commande = commandes?.find(c => c.user_id === profil.user_id)
       const ligne = {
@@ -129,7 +126,6 @@ export default function Responsable() {
           </Link>
         </div>
 
-        {/* Choix campagne et depot */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-green-100">
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -172,10 +168,9 @@ export default function Responsable() {
           </div>
         </div>
 
-        {/* Filtre colonnes */}
         {colonnes.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm p-4 mb-6 border border-green-100">
-            <p className="text-sm font-semibold text-gray-600 mb-2">Filtrer les produits affichés :</p>
+            <p className="text-sm font-semibold text-gray-600 mb-2">Filtrer les produits affiches :</p>
             <div className="flex flex-wrap gap-2">
               {colonnes.map((c) => (
                 <button
@@ -190,7 +185,6 @@ export default function Responsable() {
           </div>
         )}
 
-        {/* Tableau adherents */}
         {campagneSelectionnee && depotSelectionne && (
           <div className="bg-white rounded-xl shadow-sm p-6 border border-green-100">
             <div className="flex justify-between items-center mb-4">
