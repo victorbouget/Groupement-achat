@@ -34,19 +34,19 @@ export default function Commander() {
   }, [])
 
   // Extraire le premier nombre du conditionnement
-  const extraireNombre = (conditionnement) => {
+ const extraireNombre = (conditionnement) => {
     if (!conditionnement) return null
-    const match = conditionnement.match(/[\d\s]+/)
+    const match = conditionnement.match(/\d+[\s,.]?\d*/)
     if (!match) return null
-    const nombre = parseFloat(match[0].replace(/\s/g, ''))
+    const nombre = parseFloat(match[0].replace(/\s/g, '').replace(',', '.'))
     return isNaN(nombre) || nombre <= 0 ? null : nombre
   }
 
   // Generer les multiples
-  const genererMultiples = (conditionnement) => {
+ const genererMultiples = (conditionnement) => {
     const base = extraireNombre(conditionnement)
     if (!base) return null
-    return Array.from({ length: 100 }, (_, i) => (i + 1) * base)
+    return Array.from({ length: 1000 }, (_, i) => Math.round(((i + 1) * base) * 100) / 100)
   }
 
   const selectionnerCampagne = async (campagne) => {
