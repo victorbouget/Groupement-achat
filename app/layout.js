@@ -15,13 +15,19 @@ export const metadata = {
   title: "Groupement de l'Ille",
   description: "Plateforme de commandes groupees",
   manifest: '/manifest.json',
-  themeColor: '#15803d',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: "Groupement de l'Ille",
   },
 };
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#15803d',
+}
 
 export default function RootLayout({ children }) {
   return (
