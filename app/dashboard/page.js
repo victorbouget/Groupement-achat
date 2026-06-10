@@ -19,15 +19,9 @@ export default function Dashboard() {
       }
       setUser(user)
 
-      // Enregistrer le service worker Firebase
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/firebase-messaging-sw.js')
-          .then((registration) => {
-            console.log('Service Worker enregistre:', registration)
-          })
-          .catch((error) => {
-            console.error('Erreur Service Worker:', error)
-          })
+          .catch((error) => console.error('Erreur Service Worker:', error))
       }
 
       const { data: profilData } = await supabase
@@ -41,14 +35,12 @@ export default function Dashboard() {
         return
       }
 
-      // Verifier la cotisation
       const annee = new Date().getFullYear()
       if (profilData.cotisation_annee !== annee || !profilData.cotisation_payee) {
         const { data: params } = await supabase
           .from('parametres')
           .select('cotisation_active')
           .single()
-
         if (params?.cotisation_active) {
           router.push('/cotisation')
           return
@@ -57,7 +49,6 @@ export default function Dashboard() {
 
       setProfil(profilData)
 
-      // Demander permission notifications et sauvegarder le token
       const token = await demanderPermissionNotification()
       if (token) {
         const { data: existingToken } = await supabase
@@ -65,13 +56,9 @@ export default function Dashboard() {
           .select('id')
           .eq('user_id', user.id)
           .eq('token', token)
-          .single()
-
+          .maybeSingle()
         if (!existingToken) {
-          await supabase.from('notification_tokens').insert({
-            user_id: user.id,
-            token
-          })
+          await supabase.from('notification_tokens').insert({ user_id: user.id, token })
         }
       }
     }
@@ -85,78 +72,89 @@ export default function Dashboard() {
 
   if (!user || !profil) return null
 
+  const menuItems = [
+    {
+      href: '/commander',
+      icon: '🛒',
+      label: 'Commander',
+      description: 'Passer une commande',
+      color: 'bg-green-700',
+    },
+    {
+      href: '/historique',
+      icon: '📋',
+      label: 'Historique',
+      description: 'Mes commandes',
+      color: 'bg-green-600',
+    },
+    {
+      href: '/profil',
+      icon: '👤',
+      label: 'Mon profil',
+      description: 'Mes informations',
+      color: 'bg-green-500',
+    },
+    ...(profil?.role === 'responsable' || profil?.role === 'admin' ? [{
+      href: '/responsable',
+      icon: '📊',
+      label: 'Mon secteur',
+      description: 'Commandes du secteur',
+      color: 'bg-blue-600',
+    }] : []),
+    ...(profil?.role === 'admin' ? [{
+      href: '/admin',
+      icon: '⚙️',
+      label: 'Administration',
+      description: 'Gerer le groupement',
+      color: 'bg-gray-700',
+    }] : []),
+  ]
+
   return (
-    <main className="min-h-screen bg-green-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-green-800">
-            Tableau de bord
-          </h1>
-          <button
-            onClick={handleLogout}
-            className="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200"
-          >
-            Se deconnecter
-          </button>
+    <main className="min-h-screen bg-green-50">
+      {/* Header */}
+      <div className="bg-green-700 text-white px-4 pt-8 pb-6">
+        <div className="max-w-lg mx-auto">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-green-200 text-sm mb-1">Bonjour 👋</p>
+              <h1 className="text-2xl font-bold">{profil.prenom} {profil.nom}</h1>
+              <p className="text-green-200 text-sm mt-1">{profil.societe}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="bg-green-800 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-900"
+            >
+              Deconnexion
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Menu */}
+      <div className="max-w-lg mx-auto px-4 py-6">
+        <div className="grid grid-cols-2 gap-4">
+          {menuItems.map((item) => (
+            <Link href={item.href} key={item.href}>
+              <div className={`${item.color} text-white rounded-2xl p-5 shadow-sm active:opacity-80 cursor-pointer`}>
+                <div className="text-3xl mb-3">{item.icon}</div>
+                <p className="font-bold text-lg">{item.label}</p>
+                <p className="text-white/70 text-xs mt-1">{item.description}</p>
+              </div>
+            </Link>
+          ))}
         </div>
 
-        <p className="text-gray-600 mb-8">Bonjour, {profil.prenom} {profil.nom} 👋</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-green-100">
-            <h2 className="text-xl font-semibold text-green-700 mb-2">Nouvelle commande</h2>
-            <p className="text-gray-500 text-sm mb-4">Passer une nouvelle commande groupee</p>
-            <Link href="/commander">
-              <button className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800">
-                Commander
-              </button>
-            </Link>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-green-100">
-            <h2 className="text-xl font-semibold text-green-700 mb-2">Historique</h2>
-            <p className="text-gray-500 text-sm mb-4">Consulter vos anciennes commandes</p>
-            <Link href="/historique">
-              <button className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800">
-                Historique
-              </button>
-            </Link>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-green-100">
-            <h2 className="text-xl font-semibold text-green-700 mb-2">Mon profil</h2>
-            <p className="text-gray-500 text-sm mb-4">Mes informations personnelles</p>
-            <Link href="/profil">
-              <button className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800">
-                Modifier
-              </button>
-            </Link>
-          </div>
-
-          {(profil?.role === 'responsable' || profil?.role === 'admin') && (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-blue-100">
-              <h2 className="text-xl font-semibold text-blue-700 mb-2">Mon secteur</h2>
-              <p className="text-gray-500 text-sm mb-4">Voir les commandes de mon secteur</p>
-              <Link href="/responsable">
-                <button className="w-full bg-blue-700 text-white py-2 rounded-lg hover:bg-blue-800">
-                  Voir
-                </button>
-              </Link>
+        {/* Depot */}
+        {profil.depots?.nom && (
+          <div className="bg-white rounded-2xl p-4 mt-4 border border-green-100 flex items-center gap-3">
+            <span className="text-2xl">🏭</span>
+            <div>
+              <p className="text-xs text-gray-400">Mon depot de retrait</p>
+              <p className="font-semibold text-gray-700">{profil.depots.nom}</p>
             </div>
-          )}
-
-          {profil?.role === 'admin' && (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-green-100">
-              <h2 className="text-xl font-semibold text-green-700 mb-2">Administration</h2>
-              <p className="text-gray-500 text-sm mb-4">Gerer les commandes et produits</p>
-              <Link href="/admin">
-                <button className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800">
-                  Acceder
-                </button>
-              </Link>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </main>
   )
