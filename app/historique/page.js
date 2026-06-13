@@ -71,78 +71,103 @@ export default function Historique() {
     return 'bg-green-100 text-green-700'
   }
 
+  const getStatutEmoji = (statut) => {
+    if (statut === 'receptionnee') return '✅'
+    if (statut === 'livree') return '📦'
+    if (statut === 'validee') return '👍'
+    return '⏳'
+  }
+
   return (
-    <main className="min-h-screen bg-green-50 p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-green-800">Historique des commandes</h1>
+    <main className="min-h-screen bg-green-50">
+      {/* Header */}
+      <div className="bg-green-700 text-white px-4 pt-8 pb-6">
+        <div className="max-w-lg mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Mes commandes</h1>
           <Link href="/dashboard">
-            <button className="bg-green-100 text-green-800 px-4 py-2 rounded-lg hover:bg-green-200">
+            <button className="bg-green-800 text-white px-3 py-2 rounded-lg text-sm">
               Retour
             </button>
           </Link>
         </div>
+      </div>
 
+      <div className="max-w-lg mx-auto px-4 py-6">
         {commandes.length === 0 ? (
-          <p className="text-gray-500 text-center mt-20">Aucune commande pour instant</p>
+          <div className="bg-white rounded-xl p-8 text-center border border-gray-100">
+            <p className="text-4xl mb-3">📭</p>
+            <p className="text-gray-500">Aucune commande pour le moment</p>
+          </div>
         ) : (
           commandes.map((commande) => {
             const nbRecus = commande.commande_produits.filter(cp => cp.recu).length
             const nbTotal = commande.commande_produits.length
+            const progression = Math.round((nbRecus / nbTotal) * 100)
 
             return (
-              <div key={commande.id} className="bg-white rounded-xl shadow-sm p-6 mb-4 border border-green-100">
-                <div className="flex justify-between items-center mb-2">
-                  <div>
-                    {commande.campagnes?.nom && (
-                      <p className="text-lg font-bold text-green-700">{commande.campagnes.nom}</p>
-                    )}
+              <div key={commande.id} className="bg-white rounded-2xl shadow-sm mb-4 border border-gray-100 overflow-hidden">
+                {/* En-tete commande */}
+                <div className="px-4 py-4 border-b border-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-bold text-gray-800">
+                        {getStatutEmoji(commande.statut)} {commande.campagnes?.nom || 'Commande'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(commande.date_commande).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatutColor(commande.statut)}`}>
+                      {commande.statut}
+                    </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm ${getStatutColor(commande.statut)}`}>
-                    {commande.statut}
-                  </span>
+
+                  {/* Barre de progression */}
+                  {commande.statut === 'livree' || commande.statut === 'receptionnee' ? (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>Reception : {nbRecus}/{nbTotal}</span>
+                        <span>{progression}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full transition-all"
+                          style={{ width: `${progression}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-                <p className="text-sm text-gray-400 mb-4">
-                  {new Date(commande.date_commande).toLocaleDateString('fr-FR')}
-                </p>
 
-                <table className="w-full text-sm mb-4">
-                  <thead>
-                    <tr className="text-gray-500 border-b">
-                      <th className="text-left pb-2">Produit</th>
-                      <th className="text-center pb-2">Quantite</th>
-                      <th className="text-center pb-2">Recu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {commande.commande_produits.map((ligne) => (
-                      <tr key={ligne.id} className={`border-b last:border-0 ${ligne.recu ? 'bg-green-50' : ''}`}>
-                        <td className="py-3">{ligne.produits?.nom}</td>
-                        <td className="py-3 text-center">{ligne.quantite} {ligne.produits?.unite}</td>
-                        <td className="py-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={ligne.recu || false}
-                            onChange={() => toggleRecu(ligne.id, ligne.recu, commande.id)}
-                            className="w-5 h-5 accent-green-700 cursor-pointer"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div className="mt-2">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Reception : {nbRecus}/{nbTotal} produits</span>
-                    <span>{Math.round((nbRecus / nbTotal) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
+                {/* Produits */}
+                <div className="px-4 py-2">
+                  {commande.commande_produits.map((ligne) => (
                     <div
-                      className="bg-green-600 h-2 rounded-full transition-all"
-                      style={{ width: `${(nbRecus / nbTotal) * 100}%` }}
-                    />
-                  </div>
+                      key={ligne.id}
+                      className={`flex items-center justify-between py-3 border-b last:border-0 ${ligne.recu ? 'opacity-60' : ''}`}
+                    >
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${ligne.recu ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                          {ligne.produits?.nom}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {ligne.quantite} {ligne.produits?.unite}
+                        </p>
+                      </div>
+                      {(commande.statut === 'livree' || commande.statut === 'receptionnee') && (
+                        <button
+                          onClick={() => toggleRecu(ligne.id, ligne.recu, commande.id)}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center ml-3 transition-all ${
+                            ligne.recu
+                              ? 'bg-green-500 text-white'
+                              : 'bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          {ligne.recu ? '✓' : '○'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )
