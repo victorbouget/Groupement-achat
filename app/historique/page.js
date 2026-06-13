@@ -123,8 +123,7 @@ export default function Historique() {
                   </div>
 
                   {/* Barre de progression */}
-                  {commande.statut === 'livree' || commande.statut === 'receptionnee' ? (
-                    <div className="mt-3">
+                  <div className="mt-3">
                       <div className="flex justify-between text-xs text-gray-400 mb-1">
                         <span>Reception : {nbRecus}/{nbTotal}</span>
                         <span>{progression}%</span>
@@ -136,7 +135,6 @@ export default function Historique() {
                         />
                       </div>
                     </div>
-                  ) : null}
                 </div>
 
                 {/* Produits */}
@@ -154,8 +152,7 @@ export default function Historique() {
                           {ligne.quantite} {ligne.produits?.unite}
                         </p>
                       </div>
-                      {(commande.statut === 'livree' || commande.statut === 'receptionnee') && (
-                        <button
+                      <button
                           onClick={() => toggleRecu(ligne.id, ligne.recu, commande.id)}
                           className={`w-8 h-8 rounded-full flex items-center justify-center ml-3 transition-all ${
                             ligne.recu
@@ -165,7 +162,6 @@ export default function Historique() {
                         >
                           {ligne.recu ? '✓' : '○'}
                         </button>
-                      )}
                     </div>
                   ))}
                 </div>
