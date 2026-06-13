@@ -8,6 +8,7 @@ import Link from 'next/link'
 export default function ModifierCommande() {
   const [commande, setCommande] = useState(null)
   const [commandeProduits, setCommandeProduits] = useState([])
+  const [quantitesModifiees, setQuantitesModifiees] = useState({})
   const [produitsDispo, setProduitsDispo] = useState([])
   const [nouveauProduit, setNouveauProduit] = useState({ produit_id: '', quantite: '' })
   const [message, setMessage] = useState('')
@@ -42,16 +43,22 @@ export default function ModifierCommande() {
       .single()
 
     if (data) {
-      setCommande(data)
-      setCommandeProduits(data.commande_produits || [])
-
       // Charger le profil de l'adherent
       const { data: profil } = await supabase
         .from('profils')
         .select('nom, prenom, societe')
         .eq('user_id', data.user_id)
         .single()
+
       setCommande({ ...data, profil })
+      setCommandeProduits(data.commande_produits || [])
+
+      // Initialiser les quantites
+      const q = {}
+      data.commande_produits?.forEach(cp => {
+        q[cp.id] = cp.quantite
+      })
+      setQuantitesModifiees(q)
     }
   }
 
@@ -60,13 +67,17 @@ export default function ModifierCommande() {
     setProduitsDispo(data || [])
   }
 
-  const modifierQuantite = async (commandeProduitId, quantite) => {
-    if (parseFloat(quantite) <= 0) return
-    await supabase
-      .from('commande_produits')
-      .update({ quantite: parseFloat(quantite) })
-      .eq('id', commandeProduitId)
-    chargerCommande()
+  const sauvegarderQuantites = async () => {
+    setLoading(true)
+    for (const [id, quantite] of Object.entries(quantitesModifiees)) {
+      await supabase
+        .from('commande_produits')
+        .update({ quantite: parseFloat(quantite) })
+        .eq('id', id)
+    }
+    setMessage('Commande sauvegardee !')
+    setLoading(false)
+    setTimeout(() => setMessage(''), 2000)
   }
 
   const supprimerProduit = async (commandeProduitId) => {
@@ -92,7 +103,11 @@ export default function ModifierCommande() {
     setTimeout(() => setMessage(''), 2000)
   }
 
-  if (!commande) return <div className="min-h-screen bg-green-50 flex items-center justify-center"><p className="text-gray-500">Chargement...</p></div>
+  if (!commande) return (
+    <div className="min-h-screen bg-green-50 flex items-center justify-center">
+      <p className="text-gray-500">Chargement...</p>
+    </div>
+  )
 
   return (
     <main className="min-h-screen bg-green-50 p-8">
@@ -129,8 +144,8 @@ export default function ModifierCommande() {
 
         {/* Produits de la commande */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-green-100">
-          <h2 className="text-xl font-semibold text-green-700 mb-4">Produits commandés</h2>
-          <table className="w-full text-sm">
+          <h2 className="text-xl font-semibold text-green-700 mb-4">Produits commandes</h2>
+          <table className="w-full text-sm mb-4">
             <thead>
               <tr className="text-gray-500 border-b">
                 <th className="text-left pb-2">Produit</th>
@@ -146,8 +161,8 @@ export default function ModifierCommande() {
                     <input
                       type="number"
                       min="0"
-                      defaultValue={ligne.quantite}
-                      onBlur={(e) => modifierQuantite(ligne.id, e.target.value)}
+                      value={quantitesModifiees[ligne.id] ?? ligne.quantite}
+                      onChange={(e) => setQuantitesModifiees({ ...quantitesModifiees, [ligne.id]: e.target.value })}
                       className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-center"
                     />
                     <span className="ml-1 text-gray-400 text-xs">{ligne.produits?.unite}</span>
@@ -164,6 +179,16 @@ export default function ModifierCommande() {
               ))}
             </tbody>
           </table>
+
+          <button
+            onClick={sauvegarderQuantites}
+            disabled={loading}
+            className="w-full bg-green-700 text-white py-3 rounded-lg hover:bg-green-800 disabled:opacity-50 font-semibold"
+          >
+            {loading ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
+          </button>
+
+          {message && <p className="mt-3 text-center text-green-600 font-medium">{message}</p>}
         </div>
 
         {/* Ajouter un produit */}
@@ -196,7 +221,6 @@ export default function ModifierCommande() {
               Ajouter
             </button>
           </div>
-          {message && <p className="text-green-600 text-sm">{message}</p>}
         </div>
       </div>
     </main>
