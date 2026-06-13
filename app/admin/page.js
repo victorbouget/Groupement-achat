@@ -179,6 +179,9 @@ export default function Admin() {
                     {['en cours', 'validee', 'livree'].map((s) => (
                       <button key={s} onClick={() => changerStatut(commande.id, s)} className={`px-3 py-1 rounded-lg text-sm ${getStatutColor(s)} hover:opacity-80`}>{s}</button>
                     ))}
+                    <Link href={`/admin/modifier-commande/${commande.id}`}>
+                      <button className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200">Modifier</button>
+                    </Link>
                     <button onClick={() => supprimerCommande(commande.id)} className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200">Supprimer</button>
                   </div>
                 </div>
