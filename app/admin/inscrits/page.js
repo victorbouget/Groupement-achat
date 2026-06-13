@@ -45,7 +45,6 @@ export default function AdminInscrits() {
     if (respDepots) {
       respDepots.forEach((rd) => {
         if (!depotsParUser[rd.user_id]) depotsParUser[rd.user_id] = []
-        // Eviter les doublons
         const dejaPresent = depotsParUser[rd.user_id].find(d => d.depot_id === rd.depot_id)
         if (!dejaPresent) depotsParUser[rd.user_id].push(rd)
       })
@@ -59,10 +58,14 @@ export default function AdminInscrits() {
     chargerInscrits()
   }
 
+  const toggleValide = async (userId, valide) => {
+    await supabase.from('profils').update({ valide: !valide }).eq('user_id', userId)
+    chargerInscrits()
+  }
+
   const ajouterDepotResponsable = async (userId, depotId) => {
     if (!depotId) return
     const depotIdInt = parseInt(depotId)
-    // Verifier si deja present
     const dejaPresent = (responsableDepots[userId] || []).find(rd => rd.depot_id === depotIdInt)
     if (dejaPresent) {
       alert('Ce depot est deja assigne a cet utilisateur !')
@@ -81,6 +84,7 @@ export default function AdminInscrits() {
     ...i,
     depot_nom: i.depots?.nom || '',
     role_label: i.role || 'adherent',
+    valide_label: i.valide ? 'Valide' : 'En attente',
   }))
 
   const getValeursUniques = (cle) => {
@@ -117,6 +121,8 @@ export default function AdminInscrits() {
     })
   })
 
+  const nbEnAttente = inscrits.filter(i => !i.valide).length
+
   const colonnes = [
     { cle: 'nom', label: 'Nom' },
     { cle: 'prenom', label: 'Prenom' },
@@ -126,6 +132,7 @@ export default function AdminInscrits() {
     { cle: 'code_postal', label: 'Code postal' },
     { cle: 'depot_nom', label: 'Depot' },
     { cle: 'role_label', label: 'Role' },
+    { cle: 'valide_label', label: 'Statut' },
   ]
 
   const getRoleColor = (role) => {
@@ -141,6 +148,11 @@ export default function AdminInscrits() {
           <h1 className="text-3xl font-bold text-green-800">
             Inscrits
             <span className="ml-3 text-lg text-gray-400 font-normal">{inscritsFiltres.length} / {inscrits.length}</span>
+            {nbEnAttente > 0 && (
+              <span className="ml-3 bg-orange-100 text-orange-600 text-sm px-3 py-1 rounded-full">
+                {nbEnAttente} en attente
+              </span>
+            )}
           </h1>
           <Link href="/admin">
             <button className="bg-green-100 text-green-800 px-4 py-2 rounded-lg hover:bg-green-200">
@@ -197,12 +209,13 @@ export default function AdminInscrits() {
                   </th>
                 ))}
                 <th className="text-left p-3 border">Changer role</th>
+                <th className="text-left p-3 border">Validation</th>
                 <th className="text-left p-3 border">Depots secteur</th>
               </tr>
             </thead>
             <tbody>
               {inscritsFiltres.map((inscrit) => (
-                <tr key={inscrit.id} className="hover:bg-gray-50 border-b">
+                <tr key={inscrit.id} className={`hover:bg-gray-50 border-b ${!inscrit.valide ? 'bg-orange-50' : ''}`}>
                   <td className="p-3 border">{inscrit.nom}</td>
                   <td className="p-3 border">{inscrit.prenom}</td>
                   <td className="p-3 border">{inscrit.societe}</td>
@@ -216,6 +229,11 @@ export default function AdminInscrits() {
                     </span>
                   </td>
                   <td className="p-3 border">
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${inscrit.valide ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'}`}>
+                      {inscrit.valide ? 'Valide' : 'En attente'}
+                    </span>
+                  </td>
+                  <td className="p-3 border">
                     <select
                       value={inscrit.role_label}
                       onChange={(e) => changerRole(inscrit.user_id, e.target.value)}
@@ -225,6 +243,14 @@ export default function AdminInscrits() {
                       <option value="responsable">Responsable</option>
                       <option value="admin">Admin</option>
                     </select>
+                  </td>
+                  <td className="p-3 border">
+                    <button
+                      onClick={() => toggleValide(inscrit.user_id, inscrit.valide)}
+                      className={`px-3 py-1 rounded-lg text-xs ${inscrit.valide ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+                    >
+                      {inscrit.valide ? 'Revoquer' : 'Valider'}
+                    </button>
                   </td>
                   <td className="p-3 border">
                     {(inscrit.role_label === 'responsable' || inscrit.role_label === 'admin') && (

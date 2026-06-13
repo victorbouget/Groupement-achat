@@ -35,6 +35,12 @@ export default function Dashboard() {
         return
       }
 
+      // Verifier si le compte est valide
+      if (!profilData.valide) {
+        router.push('/attente')
+        return
+      }
+
       const annee = new Date().getFullYear()
       if (profilData.cotisation_annee !== annee || !profilData.cotisation_payee) {
         const { data: params } = await supabase
@@ -112,7 +118,6 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-green-50">
-      {/* Header */}
       <div className="bg-green-700 text-white px-4 pt-8 pb-6">
         <div className="max-w-lg mx-auto">
           <div className="flex justify-between items-start">
@@ -131,7 +136,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Menu */}
       <div className="max-w-lg mx-auto px-4 py-6">
         <div className="grid grid-cols-2 gap-4">
           {menuItems.map((item) => (
@@ -145,7 +149,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Depot */}
         {profil.depots?.nom && (
           <div className="bg-white rounded-2xl p-4 mt-4 border border-green-100 flex items-center gap-3">
             <span className="text-2xl">🏭</span>
