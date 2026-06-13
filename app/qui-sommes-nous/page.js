@@ -56,12 +56,12 @@ export default function QuiSommesNous() {
             </div>
             <div className="flex gap-4">
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl">🔍</span>
+                <span className="text-2xl">⚖️</span>
               </div>
               <div>
-                <h4 className="font-bold text-gray-800 mb-1">Transparence</h4>
+                <h4 className="font-bold text-gray-800 mb-1">L'egalite des chances</h4>
                 <p className="text-gray-500 text-sm leading-relaxed">
-                  Chaque adherent a le droit de savoir comment fonctionnent les achats, comment sont negocies les prix et comment est gere le groupement. Nous n'avons rien a cacher : notre force vient de la confiance que nous nous accordons mutuellement.
+                  Pourquoi un grand exploitant beneficierait-il de meilleurs tarifs qu'un petit ? Au sein du groupement, chaque adherent, quelle que soit la taille de son exploitation, accede aux memes conditions d'achat. En mutualisant nos volumes, nous permettons aux plus petits d'obtenir des prix jusqu'ici reserves aux plus grands. C'est la force du collectif au service de chacun.
                 </p>
               </div>
             </div>
