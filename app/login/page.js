@@ -50,8 +50,8 @@ export default function Login() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="mb-8 text-center">
           <div className="text-6xl mb-4">🌾</div>
-          <h1 className="text-3xl font-bold text-white">Groupement de l'Ille</h1>
-          <p className="text-green-200 mt-2">Plateforme de commandes groupees</p>
+          <h1 className="text-3xl font-bold text-white drop-shadow">Groupement de l'Ille</h1>
+          <p className="text-white/80 mt-2">Plateforme de commandes groupees</p>
         </div>
 
         {/* Card */}
@@ -115,7 +115,7 @@ export default function Login() {
         </div>
 
         {/* Lien qui sommes nous */}
-        <Link href="/qui-sommes-nous" className="mt-6 text-green-200 text-sm hover:text-white">
+        <Link href="/qui-sommes-nous" className="mt-6 text-white text-sm underline">
           Qui sommes-nous ?
         </Link>
       </div>
