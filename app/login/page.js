@@ -50,7 +50,7 @@ export default function Login() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="mb-8 text-center">
           <div className="text-6xl mb-4">🌾</div>
-          <h1 className="text-3xl font-bold text-white drop-shadow">Groupement de l'Ille</h1>
+          <h1 className="text-3xl font-bold text-white" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>Groupement de l'Ille</h1>
           <p className="text-white/80 mt-2">Plateforme de commandes groupees</p>
         </div>
 
@@ -115,8 +115,10 @@ export default function Login() {
         </div>
 
         {/* Lien qui sommes nous */}
-        <Link href="/qui-sommes-nous" className="mt-6 text-white text-sm underline">
-          Qui sommes-nous ?
+        <Link href="/qui-sommes-nous">
+          <button className="mt-6 bg-white text-green-700 px-5 py-2 rounded-xl text-sm font-semibold">
+            Qui sommes-nous ?
+          </button>
         </Link>
       </div>
     </main>
