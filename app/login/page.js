@@ -45,7 +45,7 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-green-700 flex flex-col">
+    <main className="min-h-screen flex flex-col" style={{ backgroundColor: '#15803d' }}>
       {/* Header */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="mb-8 text-center">
