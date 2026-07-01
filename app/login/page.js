@@ -50,8 +50,10 @@ export default function Login() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="mb-8 text-center">
           <div className="text-6xl mb-4">🌾</div>
-          <h1 className="text-3xl font-bold text-white" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>Groupement de l'Ille</h1>
-          <p className="text-white/80 mt-2">Plateforme de commandes groupees</p>
+          <div className="bg-black/20 rounded-2xl px-6 py-4">
+            <h1 className="text-3xl font-bold text-white">Groupement de l'Ille</h1>
+            <p className="text-white mt-1">Plateforme de commandes groupees</p>
+          </div>
         </div>
 
         {/* Card */}
